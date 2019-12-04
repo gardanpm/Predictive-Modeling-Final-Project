@@ -22,7 +22,11 @@ library(ggpubr)
 load("paintings_train.Rdata")
 load("paintings_test.Rdata")
 ```
-
+## **INTRODUCTION**
+  
+  Write text here...
+  
+  
 ## **EDA**
 
 _Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._  
