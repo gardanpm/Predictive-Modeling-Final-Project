@@ -9,6 +9,12 @@ knitr::opts_chunk$set(echo = FALSE)
 ```
 
 
+```{r library, include=FALSE}
+library(tidyverse)
+library(GGally)
+```
+
+
 For this project you will take the role of a consultant hired by an Art historian to explore what drove prices of paintings in 18th century Paris.  They have provided you with auction price data from 1764-1780 on the sales (seller/buyer), painter, and other characteristics of paintings. 
 
 ## About the Data Analysis Project
@@ -43,7 +49,128 @@ The Code Book is in the file `paris_paintings.md` provides more information abou
 
 ### EDA
 
-Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots.  
+Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots. 
+
+```{r EDA, echo=FALSE}
+# http://rstudio-pubs-static.s3.amazonaws.com/6975_c4943349b6174f448104a5513fed59a9.html
+# Load function
+source("http://pcwww.liv.ac.uk/~william/R/crosstab.r")
+# Frequency count
+crosstab(paintings_train, row.vars = "origin_author", col.vars = "origin_cat", type = "f")
+
+crosstab(paintings_train, row.vars = "origin_author", col.vars = "school_pntg", type = "f")
+# We observe a high correlation btw these three predictors. In addition, using our intuition, the fact that the nationality of the painter differs from the nationality based on dealers’ classification in the catalogue is most likely not important.
+
+ggpairs(paintings_train, columns=c(6:10))
+
+my3cols <- c("#2E9FDF", "#FC4E07", 'grey')
+
+plot2var <- function(y, x, fill){
+p <- ggplot(data = paintings_train, aes(x = x, color = factor(fill),
+                                 fill = factor(fill), y = y))
+
+dp <- p + geom_dotplot(binaxis='y', stackdir='center', dotsize = 1, 
+                       stackratio= 1, binwidth = .1)+
+  scale_color_manual(values = my3cols) +
+  scale_fill_manual(values = my3cols)
+dp
+}
+
+plot2var(paintings_train$origin_author, y = paintings_train$logprice, 
+         fill = paintings_train$diff_origin)+
+  ggtitle("logprice~origin_autor|diff_origin") 
+
+plot2var(x = paintings_train$school_pntg, y = paintings_train$logprice, 
+         fill = paintings_train$diff_origin)+
+  ggtitle("logprice~school_pntg|diff_origin") 
+
+# We see that the diff_origin value does not matter. What seems to matter more is an unknown origin of author or unknown school affiliation. We could almost generalize it as nationality or school affiliation different from c(D/FL, F, I)
+```
+
+
+```{r}
+for(i in 1:length(paintings_train$winningbidder)){
+paintings_train$endbuyer[i] <- ifelse(paintings_train$winningbidder[i] == "Unknown", 
+                                   'NA', paintings_train$endbuyer[i])
+paintings_train$Interm [i] <- ifelse(is.na(paintings_train$Interm[i]) == T, 
+                                   'NA', paintings_train$Interm[i])
+}
+
+crosstab(paintings_train, row.vars = "winningbiddertype", col.vars = "endbuyer", type = "f")
+
+
+my3cols <- c("#2E9FDF", "#FC4E07", "grey")
+plot2var(x = paintings_train$endbuyer, y = paintings_train$logprice, 
+         fill = paintings_train$Interm)+
+  ggtitle("logprice~endbuyer|interm") 
+```
+
+```{r}
+for(i in 1:length(paintings_train$Surface)){
+paintings_train$Surface[i] <- ifelse(is.na(paintings_train$Surface[i]) == T, 
+                                   'NA', paintings_train$Surface[i])
+paintings_train$Height_in [i] <- ifelse(is.na(paintings_train$Height_in [i]) == T, 
+                                   'NA', paintings_train$Height_in [i])
+paintings_train$Width_in [i] <- ifelse(is.na(paintings_train$Width_in [i]) == T, 
+                                   'NA', paintings_train$Width_in [i])
+paintings_train$squ_rect[i] <- ifelse(paintings_train$Shape[i] == "squ_rect", 
+                                   1, 0)
+}
+
+plot2varnum <- function(y, x, fill){
+p <- ggplot(data = paintings_train, aes(x = x, color = factor(fill),
+                                 fill = factor(fill), y = y))
+
+dp <- p + geom_point()+
+  scale_color_manual(values = my3cols) +
+  scale_fill_manual(values = my3cols)
+dp
+}
+
+plot2varnum(x = log(as.numeric(paintings_train$Surface)), y = paintings_train$logprice, 
+         fill = paintings_train$squ_rect)+
+  ggtitle("logprice~log(Surface)|Shape")
+
+plot2varnum(x = log(as.numeric(paintings_train$Height_in)), y = paintings_train$logprice, 
+         fill = paintings_train$squ_rect)+
+  ggtitle("logprice~log(Height_in)|Shape")
+
+plot2varnum(x = log(as.numeric(paintings_train$Width_in)), y = paintings_train$logprice, 
+         fill = paintings_train$squ_rect)+
+  ggtitle("logprice~log(Width_in)|Shape")
+```
+
+```{r}
+for(i in 1: length(paintings_train$materialCat)){
+paintings_train$materialCat[i] <- ifelse(paintings_train$materialCat[i] == "",
+                                         'NA',paintings_train$materialCat[i])  
+}
+crosstab(paintings_train, row.vars = "material", col.vars = "materialCat", type = "f")
+crosstab(paintings_train, row.vars = "mat", col.vars = "materialCat", type = "f")
+
+my5cols <- c("#2E9FDF", "#FC4E07", "grey", 'green', 'purple')
+
+mat <- function(dat){
+ggplot(data= dat, aes(x=log(as.numeric(Surface)), 
+                                  fill=materialCat,color = materialCat, 
+                                  y=logprice))+
+  geom_point()+
+  scale_color_manual(values = my5cols) +
+  scale_fill_manual(values = my5cols)
+}
+
+mat(paintings_train)
+
+canvas <- paintings_train %>% filter(materialCat == "canvas")
+mat(canvas)
+wood <- paintings_train %>% filter(materialCat == "wood")
+my5cols <- c('purple', "#2E9FDF", "#FC4E07", "grey", 'green')
+mat(wood)
+copper <- paintings_train %>% filter(materialCat == "copper")
+my5cols <- c("#FC4E07", 'purple', "#2E9FDF", "grey", 'green')
+mat(copper)
+```
+
 
 ### Build your first model
 
