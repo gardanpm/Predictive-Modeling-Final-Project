@@ -1,5 +1,5 @@
 ---
-title: "Preject Part 1"
+title: "Project Part 1"
 author: "Team_FP04"
 date: "12/4/2019"
 output:
