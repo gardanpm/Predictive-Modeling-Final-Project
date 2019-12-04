@@ -25,7 +25,8 @@ load("paintings_test.Rdata")
 
 ## **EDA**
 
-_Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._
+_Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._  
+  
 
 ```{r pre processing, message=FALSE, warning=FALSE, include=FALSE}
 # Data pre-processing
@@ -58,12 +59,14 @@ paintings_train$position <- ifelse(paintings_train$position >= 0 &
   
 we then see that some variables were used to classify each painting and therefore cannot be used in our analysis:
 `sale`, `lot`, `count`, `subject`, `authorstandard`, `author`, `subject`, `authorstyle`, `winningbidder`  
+  
 In addition, since we are predicting `logprice`, we will not used variable `price`.  
 
   We can classify the remaining variables in two different ways, either by the way they are coded (quantitative, dumy, multiple level factors) or by the information they provide (i.e. sale, author, size & material or characteristics). First, we goup variables according to the way they are coded:
   
 ### Quantitative Variables 
 `position`, `year`, `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in`, `Surface_Rnd`, `Surface`, `nfigures`  
+  
 We decide to classify `year` as numeric in our analysis as it is spread around more than twenty years. Using our intuition, we choose to only use  `Surface` and drop `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in` and `Surface_Rnd` as they are extremely correlated and would not necessarily bring any additional information. We might want to later investigate the relationship of `Surface` with other variables such as `Shape` or the type of material. We use a scatterplot matrix to investigate the relation between these quantitative variables and `logprice` (FIG 1).
 
 ```{r Quant, echo=FALSE, message=FALSE, warning=FALSE}
@@ -74,6 +77,7 @@ We decide to classify `year` as numeric in our analysis as it is spread around m
 
 ### Binary Variables: 
 `diff_origin`, `artistliving`, `Interm`, `figures`,`engraved`, `original`, `prevcoll`, `othartist`, `paired`, `finished`, `lrgfont`, `relig`, `landsALL`, `lands_sc`, `lands_elem`, `lands_figs`, `lands_ment`, `arch, mytho`, `peasant`, `othgenre`, `singlefig`, `portrait`, `still_life`, `discauth`, `history`, `allegory`, `pastorale`, `other`  
+  
 We draw a correlation plot to illustrate the correlation between each of these binary variables and `logprice` (FIG 2). Later, we might want to explore interractions between some of these variables between each other or with quantitative and multiple level factor variables.
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # Bin Corr plot here
@@ -82,19 +86,17 @@ We draw a correlation plot to illustrate the correlation between each of these b
 
 ### Multiple Level Factor Variable:
 `origin_author`, `origin_cat`, `school_pntg`, `Shape`, `material`, `mat`, `materialCat`, `dealer`, `winningbiddertype`, `endbuyer`, `type_intermed`  
+  
 When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, type_intermed is also ignored for now but will be considered later for interactions. (FIG 3)  
   
   
-\center ## **FIG 3 (Multiple level Factors Vs. logprice)**  
+\center Multiple level Factors Vs. logprice (FIG 3)  
   
 ```{r multiple lvl, echo=FALSE, message=FALSE, warning=FALSE}
-multlvl = paintings_train %>% select(origin_author, origin_cat, school_pntg, 
-                                     Shape, material, mat, materialCat, dealer,
-                                     winningbiddertype, endbuyer, type_intermed,
-                                     logprice)
-
+# reduce axis size and define margin
 par(cex=.5, mai= c(.1,.1,.1,.1))
 
+# position and build plots
 par(fig = c(.1,.35,.7,.95), new = TRUE)
 boxplot(logprice~origin_author, data = paintings_train, 
   xlab='origin_author', ylab='logprice', main = "origin_author Vs. logprice")
