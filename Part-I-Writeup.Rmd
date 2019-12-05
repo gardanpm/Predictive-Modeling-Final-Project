@@ -24,8 +24,10 @@ load("paintings_test.Rdata")
 ```
 ## **INTRODUCTION**
   
-  Introduction: Summary of problem and objectives (5 points)
-  Write text here...
+The paintings in 18th century Paris are important parts in painting history, therefore painting prices are of great interest for Art historian. 
+In this project, we will take the role of a consultant to explore what drove prices of paintings in 18th century Paris and which paintings might be overvalued or undervalued. We will also explore which interactions can influence the price. The painting prices will be predicted by the selected variables in auction price data from 1764-1780 on the sales (seller/buyer), painter, and other characteristics of paintings. 
+We will firslty use EDA method to classfiy the data into different kinds of variables, do some clean on the data and choose the important features in predicting the price using the scatterplots, correlation plot and boxplot. Then bulid linear model to predict the auction price `price` (using the transformation `logprice`)  using 15 predictors and some interactions.
+The goal of part-I is to create a linear regression model and then use model seletion method to choose a model that is able to estimate the price of the paintings better given the sales, painter, and other characteristics of paintings.
   
   
 ## **EDA**
