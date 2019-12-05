@@ -37,17 +37,20 @@ _Using EDA and any numerical summaries get to know the data -  identify what you
 # Data pre-processing
 
 # Replacing empty string and n/a with actual NA
-paintings_train[paintings_train==""]<-NA
-paintings_train[paintings_train=="n/a"]<-NA
+paintings_train[paintings_train==""] <- NA
+paintings_train[paintings_train=="n/a"] <- NA
 
 # Deleting replicates
-paintings_train %>% distinct()
+paintings_train <- paintings_train %>% distinct()
 
-# Transforming binary var to factor
-# binary col are 9, 15, 21, 34:59
-bin = c(9,15,21,34:59)
+# Organize the variables into continuous/binary/multilevel categorical
+quant_vars <- names(paintings_train)[c(3,5,23:27,29,33)]
+bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
+cat_vars <- names(paintings_train)[c(4,6:8,18:20,22,28,30:32)]
+# The response and useless variables are not organized here
 
-for(i in bin){
+# Transform the categorical variables to factors
+for(i in c(bin_vars, cat_vars)) {
   paintings_train[,i] <- as.factor(paintings_train[,i])
 }
 
