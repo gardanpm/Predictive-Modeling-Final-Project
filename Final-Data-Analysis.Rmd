@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = FALSE)
 ```{r library, include=FALSE}
 library(tidyverse)
 library(GGally)
+library(ggpubr)
 ```
 
 
@@ -51,6 +52,32 @@ The Code Book is in the file `paris_paintings.md` provides more information abou
 
 Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots. 
 
+_We start by exploring variables in the dataset and understand their meaning. Variables give us different information about paintings that we can classify into categories. First we see that some variables were just used to classify each painting and therefore will not be used in our analysis:
+`sale`, `lot`, `position`, `count`, `subject`, `authorstandard`, `author`, `subject`, `authorstyle`, `winningbidder`.
+Since we want to predict `logprice`, the variable `price` will not be used in our analysis either. 
+We observe also variables related to: 
+
+the author
+`origin_author`, `origin_cat`, `school_pntg`, `diff_origin`, `artistliving`; 
+
+the Sale of the paintings
+`dealer`, `year`, `winningbiddertype`, `endbuyer`, `Interm`, `type_intermed`;
+
+Size and material:
+`Height_in`, `Width_in`, `Surface_Rect`, `Diam_in`, `Surface_Rnd`, `Shape`, `Surface`, `material`, `mat`, `materialCat`, `squ_rect`
+
+Characteristics:
+(`nfigures`, `figures`),`engraved`, `original`, `prevcoll`, `othartist`, `paired`, `finished`, `lrgfont`, `relig`, (`landsALL`, `lands_sc`, `lands_elem`, `lands_figs`, `lands_ment`), `arch, mytho`, (`peasant`, `othgenre`), `singlefig`, `portrait`, `still_life`, `discauth`, `history`, `allegory`, `pastorale`, `other`
+
+
+ 
+
+```{r}
+paintings_train %>% distinct()
+```
+
+
+
 ```{r EDA, echo=FALSE}
 # http://rstudio-pubs-static.s3.amazonaws.com/6975_c4943349b6174f448104a5513fed59a9.html
 # Load function
@@ -72,7 +99,8 @@ p <- ggplot(data = paintings_train, aes(x = x, color = factor(fill),
 dp <- p + geom_dotplot(binaxis='y', stackdir='center', dotsize = 1, 
                        stackratio= 1, binwidth = .1)+
   scale_color_manual(values = my3cols) +
-  scale_fill_manual(values = my3cols)
+  scale_fill_manual(values = my3cols)+
+  stat_cor()
 dp
 }
 
@@ -123,7 +151,8 @@ p <- ggplot(data = paintings_train, aes(x = x, color = factor(fill),
 
 dp <- p + geom_point()+
   scale_color_manual(values = my3cols) +
-  scale_fill_manual(values = my3cols)
+  scale_fill_manual(values = my3cols)+
+  stat_cor()
 dp
 }
 
@@ -156,7 +185,8 @@ ggplot(data= dat, aes(x=log(as.numeric(Surface)),
                                   y=logprice))+
   geom_point()+
   scale_color_manual(values = my5cols) +
-  scale_fill_manual(values = my5cols)
+  scale_fill_manual(values = my5cols)+
+  stat_cor()
 }
 
 mat(paintings_train)
@@ -169,6 +199,102 @@ mat(wood)
 copper <- paintings_train %>% filter(materialCat == "copper")
 my5cols <- c("#FC4E07", 'purple', "#2E9FDF", "grey", 'green')
 mat(copper)
+```
+```{r}
+ggplot(data  = paintings_train, aes(x = landsALL, y = logprice))+
+  geom_point()+
+  geom_jitter()+
+  stat_cor()
+
+plot2var(x = factor(paintings_train$lands_sc), fill = paintings_train$lands_figs, 
+         y = paintings_train$logprice)
+plot2var(x = factor(paintings_train$lands_elem), fill = paintings_train$lands_ment, 
+         y = paintings_train$logprice)
+```
+```{r}
+crosstab(paintings_train, row.vars = "arch", col.vars = "mytho", type = "f")
+crosstab(paintings_train, row.vars = "peasant", col.vars = "mytho", type = "f")
+crosstab(paintings_train, row.vars = "arch", col.vars = "peasant", type = "f")
+crosstab(paintings_train, row.vars = "othgenre", col.vars = "peasant", type = "f")
+plot2var(x = factor(paintings_train$arch), fill = paintings_train$peasant, 
+         y = paintings_train$logprice)
+plot2var(x = factor(paintings_train$arch), fill = paintings_train$mytho, 
+         y = paintings_train$logprice)
+plot2var(x = factor(paintings_train$peasant), fill = paintings_train$mytho, 
+         y = paintings_train$logprice)
+plot2var(x = factor(paintings_train$peasant), fill = paintings_train$othgenre, 
+         y = paintings_train$logprice)
+```
+
+```{r}
+ggplot(data=paintings_train, aes(x = nfigures, fill = factor(figures), 
+                                 color = factor(figures), y = logprice))+
+  geom_point()+
+  stat_cor()+
+  scale_color_manual(values = my5cols) +
+  scale_fill_manual(values = my5cols)
+
+
+for(i in 34:38){
+print(ggplot(data=paintings_train, aes(x = paintings_train[,i], y = logprice))+
+  geom_point()+
+  stat_cor()+
+  xlab(names(paintings_train)[i]) )
+}
+
+for(i in 40:42){
+print(ggplot(data=paintings_train, aes(x = paintings_train[,i], y = logprice))+
+  geom_point()+
+  stat_cor()+
+  xlab(names(paintings_train)[i]) )
+}
+
+cor(paintings_train$finished, paintings_train$lrgfont)
+plot2var(x= factor(paintings_train$finished), fill = paintings_train$lrgfont,
+         y = paintings_train$logprice)
+
+for(i in 52:59){
+print(ggplot(data=paintings_train, aes(x = paintings_train[,i], y = logprice))+
+  geom_point()+
+  stat_cor()+
+  xlab(names(paintings_train)[i]) )
+}
+
+
+ggplot(data = paintings_train, aes(x = factor(paintings_train$dealer),
+                                   y = paintings_train$logprice))+
+  geom_point()
+
+ggplot(data = paintings_train, aes(x = year, fill = paintings_train$dealer,
+                                   color = paintings_train$dealer,
+                                   y = paintings_train$logprice))+
+  geom_point()+
+  scale_color_manual(values = my5cols) +
+  scale_fill_manual(values = my5cols)
+
+ggplot(data = paintings_train, aes(x = dealer, fill = factor(artistliving), y = logprice))+
+  geom_boxplot()+
+  xlab('dealer')+
+  ylab('logprice')
+
+# Correlation panel
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+# Customize upper panel
+upper.panel<-function(x, y){
+  points(x,y, pch = 19, col = my3cols[iris$Species])
+}
+# Create the plots
+
+pairs(paintings_train[,c(34:38,10)], 
+      lower.panel = panel.cor,
+      upper.panel = upper.panel)
 ```
 
 
