@@ -205,44 +205,59 @@ corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
 When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, type_intermed is also ignored for now but will be considered later for interactions. (FIG 3)  
   
 ```{r multiple lvl, echo=FALSE, message=FALSE, warning=FALSE}
+quant_var_to_plot <- c("origin_author", "origin_cat", "school_pntg", "dealer",  "winningbiddertype", "endbuyer", "Shape", "mat", "materialCat")
+
+r.2 = matrix(NA, 9,1)
+w = 0
+for(i in paintings_train[quant_var_to_plot]){
+w = w+1
+a <- summary(lm(logprice ~ i, data=paintings_train))[["r.squared"]]
+r.2[w] <- a
+}
+r.2 = round(r.2, 3)
+
 # reduce axis size and define margin
 par(cex=.5, mai= c(.1,.1,.1,.1), oma = c(0,0,3,0))
 
 # position and build plots
 par(fig = c(.1,.35,.7,.95), new = TRUE)
 boxplot(logprice~origin_author, data = paintings_train, 
-  xlab='origin_author', ylab='logprice', main = "origin_author Vs. logprice")
-par(fig = c(.4,.65,.7,.95), new = TRUE)
+  xlab='origin_author', ylab='logprice', main = paste("origin_author Vs. logprice R^2 = ", r.2[1], sep=""))
+par(fig = c(.4,.65,.7,.95), new = TRUE)  
 boxplot(logprice~origin_cat, data = paintings_train, 
-  xlab='origin_cat', ylab='logprice', main = "origin_cat Vs. logprice")
+  xlab='origin_cat', ylab='logprice', main = paste("origin_cat Vs. logprice R^2 = ", 
+                                                   r.2[2], sep=""))
 par(fig = c(.7,.95,.7,.95), new = TRUE)
 boxplot(logprice~school_pntg, data = paintings_train, 
-  xlab='school_pntg', ylab='logprice', main = "school_pntg Vs. logprice")
+  xlab='school_pntg', ylab='logprice', main = paste("school_pntg Vs. logprice R^2 = ", r.2[3], sep=""))
 par(fig = c(.1,.35,.4,.65), new = TRUE)
 boxplot(logprice~dealer, data = paintings_train, 
-  xlab='dealer', ylab='logprice', main= "dealer Vs. logprice")
+  xlab='dealer', ylab='logprice', main= paste(
+    "dealer Vs. logprice R^2 = ", r.2[4], sep=""))
 par(fig = c(.4,.65,.4,.65), new = TRUE)
 boxplot(logprice~winningbiddertype, data = paintings_train, 
-  xlab='winningbiddertype', ylab='logprice', main = "winningbiddertype Vs. logprice",
+  xlab='winningbiddertype', ylab='logprice', main = 
+    paste("winningbiddertype Vs. logprice R^2 = ", r.2[5], sep=""),
   las=2)
 par(fig = c(.7,.95,.4,.65), new = TRUE)
 boxplot(logprice~endbuyer, data = paintings_train, 
-  xlab='endbuyer', ylab='logprice', main = "endbuyer Vs. logprice")
+  xlab='endbuyer', ylab='logprice', main = paste("endbuyer Vs. logprice R^2 = ", r.2[6], sep=""))
 par(fig = c(.1,.35,.1,.35), new = TRUE)
 boxplot(logprice~Shape, data = paintings_train, 
-  xlab='Shape', ylab='logprice', main = "Shape Vs. logprice", las=2)
+  xlab='Shape', ylab='logprice', main = paste("Shape Vs. logprice R^2 = ", r.2[7],
+                                              sep=""), las=2)
 par(fig = c(.4,.65,.1,.35), new = TRUE)
 boxplot(logprice~mat, data = paintings_train, 
-  xlab='mat', ylab='logprice', main = "mat Vs. logprice", las = 2)
+  xlab='mat', ylab='logprice', main = paste("mat Vs. logprice R^2 = ", r.2[8],
+                                              sep=""), las = 2)
 par(fig = c(.7,.95,.1,.35), new = TRUE)
 boxplot(logprice~materialCat, data = paintings_train, 
-  xlab='materialCat', ylab='logprice', main = "materialCat Vs. logprice")
+  xlab='materialCat', ylab='logprice', main = paste(
+    "materialCat Vs. logprice R^2 = ", r.2[9], sep=""))
 
 # Text for all plots combined
 mtext("FIG 3: Distribution of log(price) across multilevel factors",
       line = 0, side = 3, outer = T)
-
-summary(lm(logprice~endbuyer, data=paintings_train))
 
 ```
    
