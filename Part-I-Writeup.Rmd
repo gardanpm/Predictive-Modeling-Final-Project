@@ -18,6 +18,7 @@ library(ggpubr)
 library(corrplot)
 library(ggthemes)
 library(knitr)
+library(texreg)
 ```
 
 
@@ -254,29 +255,26 @@ _* Residual: must include residual plot(s) and a discussion._
 
 _* Variables: must include table of coefficients and CI_-->
 
-```{r model selection}
-# call impute functon here
-# Initial full model
-# Stepwise selection (AIC/BIC/backwards/both/etc.)
-# Anova
-#lm(logprice ~ year + log(Surface+1) + diff_origin + Interm +
-  #                     engraved + prevcoll + paired + figures +finished +
-   #                    lrgfont + lands_sc + peasant + portrait + still_life +
-    #                   discauth + dealer + materialCat + endbuyer + Shape +
-                       school_pntg +
-                       log(Surface+1):materialCat + school_pntg:diff_origin +
-                       dealer:school_pntg + dealer:Interm + dealer:endbuyer +
-                       endbuyer:Interm + finished:prevcoll 
-
-paintings_train_subset <- paintings_train %>% select(logprice, year, Surface,  diff_origin, Interm ,  engraved , prevcoll , paired , figures ,finished ,
-                      lrgfont , lands_sc , peasant , portrait , still_life ,
-                      discauth , dealer , materialCat , endbuyer , Shape ,
-                       school_pntg)
+```{r initial model, results = "asis"}
+paintings_train_subset <- paintings_train %>% 
+  mutate(lSurface = log(Surface + 1)) %>% 
+  select(logprice, year, lSurface, diff_origin, Interm, engraved, prevcoll,
+         paired, figures,finished, lrgfont, lands_s, peasant, portrait, still_life,
+         discauth, dealer, materialCat, endbuyer, Shape, school_pntg, 
+         lSurface:materialCat, school_pntg:diff_origin,
+         dealer:school_pntg, dealer:Interm, dealer:endbuyer, endbuyer:Interm,
+         finished:prevcoll)
 
 
-model.init <- lm(logprice ~ (. - Surface + log(Surface+1))^2 ,data = impute_NA(paintings_train_subset))
+model.init <- lm(logprice ~ . ,data = impute_NA(paintings_train_subset))
 
-step(model.init, k=2)
+texreg(model.init)
+```
+
+```{r model selection, results = "asis"}
+model.all <- lm(logprice ~ . ^ 2,data = impute_NA(paintings_train_subset))
+model.sel <- step(model.init, k=2)
+texreg(model.init)
 ```
 
 ```{r summary tables}
