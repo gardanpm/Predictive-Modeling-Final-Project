@@ -41,30 +41,70 @@ _Using EDA and any numerical summaries get to know the data -  identify what you
 ```{r pre processing, message=FALSE, warning=FALSE, include=FALSE}
 # Data pre-processing
 
-# Replacing empty string and n/a with actual NA
-paintings_train[paintings_train==""] <- NA
-paintings_train[paintings_train=="n/a"] <- NA
-
-# Deleting replicates
-paintings_train <- paintings_train %>% distinct()
-
 # Organize the variables into continuous/binary/multilevel categorical
 quant_vars <- names(paintings_train)[c(3,5,23:27,29,33)]
 bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
 cat_vars <- names(paintings_train)[c(4,6:8,18:20,22,28,30:32)]
 # The response and useless variables are not organized here
 
-# Transform the categorical variables to factors
-for(i in c(bin_vars, cat_vars)) {
-  paintings_train[,i] <- as.factor(paintings_train[,i])
+# Function to replace NA values
+# If na_as_level = T, NAs in categorical vars get replaced with mode
+# If na_as_level = F, NA gets changed to a separate level
+impute_NA <- function(df, na_as_level = FALSE) {
+  
+  # For quantitative variables, replace with the mean
+  for (q in quant_vars) {
+    mean_val <- mean(df[[q]], na.rm = TRUE)
+    replacement <- ifelse(typeof(df[[q]]) == "double",
+                          mean_val, as.integer(mean_val))
+    df[[q]][is.na(df[[q]])] <- replacement
+  }
+  
+  # For categorical variables, replace with the mode
+  for (ct in c(cat_vars, bin_vars)) {
+    if (na_as_level) {
+      df[[ct]] <- as.character(df[[ct]])
+      df[[ct]][is.na(df[[ct]])] <- "N/A"
+      df[[ct]] <- as.factor(df[[ct]])
+    }
+    else {
+      freq_tab <- table(df[[ct]])
+      mode_val <- names(freq_tab)[which.max(freq_tab)]
+      df[[ct]][is.na(df[[ct]])] <- mode_val
+    }
+  }
+  
+  return (df)
 }
 
-paintings_train$position <- ifelse(paintings_train$position >= 0 &
-                                     paintings_train$position <= 1,
-                                   paintings_train$position, NA)
+preprocess <- function(df) {
+  
+  # Replacing empty string and n/a with actual NA
+  df[df == ""] <- NA
+  df[df == "n/a"] <- NA
+  
+  # Deleting replicates
+  df <- df %>% distinct()
+  
+  # Transform the categorical variables to factors
+  for(i in c(bin_vars, cat_vars)) {
+    df[,i] <- as.factor(df[,i])
+  }
+  
+  df$position <- ifelse(df$position >= 0 & df$position <= 1,
+                        df$position, NA)
+  # Can only have positive surface - need to adjust, since we take the log
+  df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
+  df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
 
-paintings_train$Shape <- recode(paintings_train$Shape, ovale = "oval", ronde = "round")
+  return (df)
+}
+
+paintings_train <- preprocess(paintings_train)
+paintings_test <- preprocess(paintings_test)
 ```
+
+
   We start by exploring variables in the dataset and understand their meaning. We first implement the required data pre-processing:
   
   * transform empty string and "n/a" character to NA
@@ -213,15 +253,18 @@ _* Variables: must include table of coefficients and CI_
 # Stepwise selection (AIC/BIC/backwards/both/etc.)
 ```
 
-```{r table functions}
-model <- lm(logprice ~ Interm + diff_origin, data = paintings_train)
+```{r summary tables}
+model1 <- lm(logprice ~ Interm + diff_origin + year, data = paintings_train)
+
 # Test summary table
-kable(summary(model)$coefficients, digits = 4)
+kable(summary(model1)$coefficients, digits = 4,
+      caption = "")
+
 # Test coefficents/CI table
-kable(cbind(summary(model)$coefficients[,1], confint(model)))
+kable(cbind("Estimate" = summary(model1)$coefficients[,1], confint(model1)),
+      digits = 4, caption = "")
 ```
 
-  
   
 ## **Summary and Conclusions** 
   
@@ -254,9 +297,10 @@ In order to have a passing wercker badge, your file for predictions needs to be 
 Save predictions and intervals.  
 ```{r predict-model-final, echo=FALSE, include=FALSE}
 # change model1 or update as needed
-predictions = as.data.frame(
-  exp(predict(model1, newdata=paintings_test, 
-              interval = "pred")))
+# here is where you could pass in impute_NA(paintings_test)
+predictions = as.data.frame(exp(predict(model1, newdata = impute_NA(paintings_test),
+                                        interval = "pred")))
+
 save(predictions, file="predict-test.Rdata")
 ```
 
