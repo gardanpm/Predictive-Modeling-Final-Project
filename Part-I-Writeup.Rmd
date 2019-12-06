@@ -273,7 +273,7 @@ texreg(model.init)
 
 ```{r model selection, results = "asis"}
 model.all <- lm(logprice ~ . ^ 2,data = impute_NA(paintings_train_subset))
-model.sel <- step(model.init, k=2)
+model.sel <- step(model.all, k=2)
 texreg(model.init)
 ```
 
