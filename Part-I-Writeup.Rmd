@@ -54,15 +54,25 @@ cat_vars <- names(paintings_train)[c(4,6:8,19,20,22,28,30:32)]
 impute_NA <- function(df, na_as_level = FALSE) {
   
   # For quantitative variables, replace with the mean
-  for (q in quant_vars) {
+  for (q in setdiff(quant_vars, "Surface")) {
+    if (!(q %in% names(df))) next
+    
     mean_val <- mean(df[[q]], na.rm = TRUE)
     replacement <- ifelse(typeof(df[[q]]) == "double",
                           mean_val, as.integer(mean_val))
     df[[q]][is.na(df[[q]])] <- replacement
   }
   
+  # SPECIAL CASE: Surface is skewed heavily right, so take the median
+  if ("Surface" %in% names(df)) {
+    med_val <- median(df$Surface, na.rm = TRUE)
+    df$Surface[is.na(df$Surface)] <- med_val
+  }
+  
   # For categorical variables, replace with the mode
   for (ct in c(cat_vars, bin_vars)) {
+    if (!(ct %in% names(df))) next
+    
     if (na_as_level) {
       df[[ct]] <- as.character(df[[ct]])
       df[[ct]][is.na(df[[ct]])] <- "N/A"
