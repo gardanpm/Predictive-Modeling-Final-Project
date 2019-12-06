@@ -15,6 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(GGally)
 library(ggpubr)
+library(corrplot)
+library(ggthemes)
 ```
 
 
@@ -99,11 +101,49 @@ ggpairs(paintings_train %>%
 ### Binary Variables: 
 `diff_origin`, `artistliving`, `Interm`, `figures`,`engraved`, `original`, `prevcoll`, `othartist`, `paired`, `finished`, `lrgfont`, `relig`, `landsALL`, `lands_sc`, `lands_elem`, `lands_figs`, `lands_ment`, `arch, mytho`, `peasant`, `othgenre`, `singlefig`, `portrait`, `still_life`, `discauth`, `history`, `allegory`, `pastorale`, `other`  
   
-We draw a correlation plot to illustrate the correlation between each of these binary variables and `logprice` (FIG 2). Later, we might want to explore interractions between some of these variables between each other or with quantitative and multiple level factor variables.
+We present correlations all the binary variables and log(price) (FIG 2a). Unsurprisingly, an additional paragraph in a larger font has a high correlation with price, suggesting that these paintings were the highlights in the different auctions. An intermediary also suggests a higher price, maybe because these iindividuals are involved mostly in high stakes sales. A mention of the previous owner and having a highly polished finishing are also factors that seem to drive up the price. Factors the drive the costs down are different origin of author and painting, if the content of the painting includes a "plain landscape", if the painting is just a "pairing" of another art work, and if the content is still life. 
+
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-# Bin Corr plot here
-# name FIG 2
+bin_corr <- paintings_train %>% 
+  select(logprice, bin_vars) %>% 
+  mutate_all(.funs = as.numeric) %>% 
+  cor(use ="pairwise.complete.obs")
+
+# corrplot(bin_corr, order = "hclust",  tl.col = "black", tl.cex =0.8)
+
+bin_price <- data.frame(corr = bin_corr[1,],
+                var = row.names(bin_corr)) %>% 
+  arrange(-corr) %>% 
+  filter(var != "logprice") 
+
+ggplot(bin_price, aes(x=reorder(var, corr), y = corr, fill = corr))+
+  geom_bar(stat = "identity")+
+  coord_flip()+scale_fill_gradient2(low="firebrick", high="springgreen4", mid = "lightyellow")+
+  theme_bw()+
+  labs(title = "FIG 2a: Correlations of log(price) with Binary Variables")+
+  ylab("Correlation with log(price)")+
+  xlab("Binary Variables")+theme(legend.position = "none")
+
 ```
+
+Once we have an idea of the top binary variable candidates to include in our model, it is important to take a look at their correlations within themselves and with other variables. Fig 2b is a correlation matrix of select binary variables. From this plot, it is clear that there is no need to include more than one variable among `landsALL`, `lands_elem` and `lands_figs` as they are all related in content, highly correlated and have similar effect on prices. `singlefig` is strongly negatively correlated with the above three, and negatively correlated with price, so we should also consider dropping it if we select one of the others. `lrgfont` and `interm`, although both of them have a high correlation with prices, are also correlated between them, so we might consider choosing one of them.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+bin_vars_subset <- as.character(bin_price$var[c(1:6,11, 24:29)])
+bin_corr_subset <- paintings_train %>% 
+  select(logprice, bin_vars_subset) %>% 
+  mutate_all(.funs = as.numeric) %>% 
+  cor(use ="pairwise.complete.obs")
+
+corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
+         title = "FIG 2b: Correlation plot of log(price) and select binary variables")
+
+```
+
+
+
+
 
 ### Multiple Level Factor Variable:
 `origin_author`, `origin_cat`, `school_pntg`, `Shape`, `material`, `mat`, `materialCat`, `dealer`, `winningbiddertype`, `endbuyer`, `type_intermed`  
