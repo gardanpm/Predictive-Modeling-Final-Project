@@ -35,7 +35,7 @@ We will first explore the effects of potential predictors and their interactions
   
 ## **EDA**
 
-_Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._  
+<!--_Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._ -->  
   
 
 ```{r pre processing, message=FALSE, warning=FALSE, include=FALSE}
@@ -44,7 +44,7 @@ _Using EDA and any numerical summaries get to know the data -  identify what you
 # Organize the variables into continuous/binary/multilevel categorical
 quant_vars <- names(paintings_train)[c(3,5,23:27,29,33)]
 bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
-cat_vars <- names(paintings_train)[c(4,6:8,18:20,22,28,30:32)]
+cat_vars <- names(paintings_train)[c(4,6:8,19,20,22,28,30:32)]
 # The response and useless variables are not organized here
 
 # Function to replace NA values
@@ -230,6 +230,9 @@ boxplot(logprice~materialCat, data = paintings_train,
 # Text for all plots combined
 mtext("FIG 3: Distribution of log(price) across multilevel factors",
       line = 0, side = 3, outer = T)
+
+summary(lm(logprice~endbuyer, data=paintings_train))
+
 ```
    
    
@@ -241,7 +244,7 @@ The 10 variables that we would expect to be the most important in predicting `lo
   
 ## **Model Development and Assessment**
   
-_Development and assessment of an initial model (10 points)_
+<!--_Development and assessment of an initial model (10 points)_
 
 _* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained._
 
@@ -249,11 +252,14 @@ _* Model selection: must include a discussion_
 
 _* Residual: must include residual plot(s) and a discussion._
 
-_* Variables: must include table of coefficients and CI_
+_* Variables: must include table of coefficients and CI_-->
 
 ```{r model selection}
+# call impute functon here
 # Initial full model
 # Stepwise selection (AIC/BIC/backwards/both/etc.)
+# Anova
+model.init <- lm( ,data = impute_NA(paintings_train)
 ```
 
 ```{r summary tables}
