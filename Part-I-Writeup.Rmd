@@ -77,14 +77,16 @@ impute_NA <- function(df, na_as_level = FALSE) {
   return (df)
 }
 
-preprocess <- function(df) {
+preprocess <- function(df, rm_dup = TRUE) {
   
   # Replacing empty string and n/a with actual NA
   df[df == ""] <- NA
   df[df == "n/a"] <- NA
   
   # Deleting replicates
-  df <- df %>% distinct()
+  if (rm_dup) {
+    df <- df %>% distinct()
+  }
   
   # Transform the categorical variables to factors
   for(i in c(bin_vars, cat_vars)) {
@@ -101,7 +103,7 @@ preprocess <- function(df) {
 }
 
 paintings_train <- preprocess(paintings_train)
-paintings_test <- preprocess(paintings_test)
+paintings_test <- preprocess(paintings_test, rm_dup = F)
 ```
 
 
