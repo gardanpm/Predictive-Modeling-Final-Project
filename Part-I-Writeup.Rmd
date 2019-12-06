@@ -259,7 +259,24 @@ _* Variables: must include table of coefficients and CI_-->
 # Initial full model
 # Stepwise selection (AIC/BIC/backwards/both/etc.)
 # Anova
-model.init <- lm( ,data = impute_NA(paintings_train)
+#lm(logprice ~ year + log(Surface+1) + diff_origin + Interm +
+  #                     engraved + prevcoll + paired + figures +finished +
+   #                    lrgfont + lands_sc + peasant + portrait + still_life +
+    #                   discauth + dealer + materialCat + endbuyer + Shape +
+                       school_pntg +
+                       log(Surface+1):materialCat + school_pntg:diff_origin +
+                       dealer:school_pntg + dealer:Interm + dealer:endbuyer +
+                       endbuyer:Interm + finished:prevcoll 
+
+paintings_train_subset <- paintings_train %>% select(logprice, year, Surface,  diff_origin, Interm ,  engraved , prevcoll , paired , figures ,finished ,
+                      lrgfont , lands_sc , peasant , portrait , still_life ,
+                      discauth , dealer , materialCat , endbuyer , Shape ,
+                       school_pntg)
+
+
+model.init <- lm(logprice ~ (. - Surface + log(Surface+1))^2 ,data = impute_NA(paintings_train_subset))
+
+step(model.init, k=2)
 ```
 
 ```{r summary tables}
@@ -282,6 +299,8 @@ kable(cbind("Estimate" = summary(model1)$coefficients[,1], confint(model1)),
 What is the (median) price for the "baseline" category if there are categorical or dummy variables in the model (add CI's)?  (be sure to include units!) Highlight important findings and potential limitations of your model.  Does it appear that interactions are important?  What are the most important variables and/or interactions?  Provide interprations of how the most important variables influence the (median) price giving a range (CI).  Correct interpretation of coefficients for the log model desirable for full points.
 
 Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
+
+
 
 _Points will be deducted for code chunks that should not be included, etc._
 
