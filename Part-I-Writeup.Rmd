@@ -281,17 +281,16 @@ _* Residual: must include residual plot(s) and a discussion._
 _* Variables: must include table of coefficients and CI_-->
 
 ```{r initial model, results = "asis"}
-paintings_train_subset <- paintings_train %>% 
-  mutate(lSurface = log(Surface + 1)) %>% 
-  select(logprice, year, lSurface, diff_origin, Interm, engraved, prevcoll,
+paintings_train_subset <- paintings_train %>%
+  select(logprice, year, Surface, diff_origin, Interm, engraved, prevcoll,
          paired, figures,finished, lrgfont, lands_sc, peasant, portrait, still_life,
          discauth, dealer, materialCat, endbuyer, Shape, school_pntg)
 
 paintings_train_subset <- impute_NA(paintings_train_subset)
 
-model.init <- lm(logprice ~ . + lSurface:materialCat + school_pntg:diff_origin + 
-         dealer:school_pntg + dealer:Interm + dealer:endbuyer + endbuyer:Interm +
-         finished:prevcoll, data = paintings_train_subset)
+model.init <- lm(logprice ~ . - Surface + log(Surface + 1) +
+         log(Surface + 1):materialCat + dealer:school_pntg + dealer:Interm +
+         endbuyer:Interm + finished:prevcoll, data = paintings_train_subset)
 
 texreg(model.init)
 ```
@@ -303,6 +302,7 @@ texreg(model.sel)
 
 ```{r summary tables}
 model1 <- lm(logprice ~ Interm + diff_origin + year, data = paintings_train)
+model1 <- model.sel
 
 # Test summary table
 kable(summary(model1)$coefficients, digits = 4,
