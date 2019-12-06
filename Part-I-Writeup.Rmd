@@ -130,11 +130,10 @@ We decide to classify `year` as numeric in our analysis as it is spread around m
 ```{r Quant, echo=FALSE, message=FALSE, warning=FALSE}
 # Quant var plot here 
 # name FIG 1
-
-
 ggpairs(paintings_train %>%
-          select(position, year, Surface, nfigures, logprice) %>%
-          mutate(Surface = ifelse(Surface == 0, NA, log(Surface)))
+          mutate(logSurface = log(Surface)) %>%
+          select(position, year, nfigures, logSurface, logprice),
+        title = "FIG 1: Relationship of relevant quantitative variables"
 )
 ```
   
@@ -180,7 +179,8 @@ bin_corr_subset <- paintings_train %>%
   cor(use ="pairwise.complete.obs")
 
 corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
-         title = "FIG 2b: Correlation plot of log(price) and select binary variables")
+         title = "FIG 2b: Correlation plot of log(price) and select binary variables",
+         mar = c(0,0,2,0))
 
 ```
 
@@ -193,12 +193,9 @@ corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
   
 When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, type_intermed is also ignored for now but will be considered later for interactions. (FIG 3)  
   
-  
-\center Multiple level Factors Vs. logprice (FIG 3)  
-  
 ```{r multiple lvl, echo=FALSE, message=FALSE, warning=FALSE}
 # reduce axis size and define margin
-par(cex=.5, mai= c(.1,.1,.1,.1))
+par(cex=.5, mai= c(.1,.1,.1,.1), oma = c(0,0,3,0))
 
 # position and build plots
 par(fig = c(.1,.35,.7,.95), new = TRUE)
@@ -212,7 +209,7 @@ boxplot(logprice~school_pntg, data = paintings_train,
   xlab='school_pntg', ylab='logprice', main = "school_pntg Vs. logprice")
 par(fig = c(.1,.35,.4,.65), new = TRUE)
 boxplot(logprice~dealer, data = paintings_train, 
-  xlab='dealer', ylab='logprice', main= "dealer Vs. logprice", ylab = "logprice")
+  xlab='dealer', ylab='logprice', main= "dealer Vs. logprice")
 par(fig = c(.4,.65,.4,.65), new = TRUE)
 boxplot(logprice~winningbiddertype, data = paintings_train, 
   xlab='winningbiddertype', ylab='logprice', main = "winningbiddertype Vs. logprice",
@@ -229,6 +226,10 @@ boxplot(logprice~mat, data = paintings_train,
 par(fig = c(.7,.95,.1,.35), new = TRUE)
 boxplot(logprice~materialCat, data = paintings_train, 
   xlab='materialCat', ylab='logprice', main = "materialCat Vs. logprice")
+
+# Text for all plots combined
+mtext("FIG 3: Distribution of log(price) across multilevel factors",
+      line = 0, side = 3, outer = T)
 ```
    
    
