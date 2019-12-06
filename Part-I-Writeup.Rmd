@@ -17,6 +17,7 @@ library(GGally)
 library(ggpubr)
 library(corrplot)
 library(ggthemes)
+library(knitr)
 ```
 
 
@@ -197,15 +198,28 @@ The 10 variables that we would expect to be the most important in predicting `lo
   
 ## **Model Development and Assessment**
   
-Development and assessment of an initial model (10 points)
+_Development and assessment of an initial model (10 points)_
 
-* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained. 
+_* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained._
 
-* Model selection: must include a discussion
+_* Model selection: must include a discussion_
 
-* Residual: must include residual plot(s) and a discussion.  
+_* Residual: must include residual plot(s) and a discussion._
 
-* Variables: must include table of coefficients and CI
+_* Variables: must include table of coefficients and CI_
+
+```{r model selection}
+# Initial full model
+# Stepwise selection (AIC/BIC/backwards/both/etc.)
+```
+
+```{r table functions}
+model <- lm(logprice ~ Interm + diff_origin, data = paintings_train)
+# Test summary table
+kable(summary(model)$coefficients, digits = 4)
+# Test coefficents/CI table
+kable(cbind(summary(model)$coefficients[,1], confint(model)))
+```
 
   
   
