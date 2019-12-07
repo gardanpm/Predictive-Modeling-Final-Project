@@ -371,7 +371,9 @@ The regression includes dummies and categorical factors, while dropping the "bas
 
 The median year in our sample is 1773 and the median `log(surface+1)` = 5.6. For a "median" observation, the predicted price is $e^{(-208.26+ 0.1179*1773 + 0.405*5.6)} = 21$ libres. 
 
-Our recommendation for the art historian is that paintings that are sold in later years, that had a second paragraph in a bigger font, and an intermediary was involved, were probably sold for a higher price. The identity of the dealer is important as well, and so is the content of the painting. French buyers in the 18th century, it turns out, did not really value "plain landscapes".
+Our model is limited in various ways. First, it is a linear model and therefore cannot take into account more complex relations between the variables. Second, since most of the variable selection was done manually, it might not be the best selection. Probably more interactions and other variables can improve the fit. Lastly, the predictions are not limited in any way. While the range of the prices in the training data is between 1 and 29K, the upper limit bound of our prediction is 196K. More sophisticated models might be able to improve on that. 
+
+Meanwhile, our recommendation for the art historian is that paintings that are sold in later years, that had a second paragraph in a bigger font, and an intermediary was involved, were probably sold for a higher price. The identity of the dealer is important as well, and so is the content of the painting. French buyers in the 18th century, it turns out, did not really value "plain landscapes".
 
 
 <!-- _Points will be deducted for code chunks that should not be included, etc._
