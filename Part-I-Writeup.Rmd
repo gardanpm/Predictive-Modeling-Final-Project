@@ -345,6 +345,20 @@ What is the (median) price for the "baseline" category if there are categorical 
 Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.-->
 
 ...
+According to the model, p values for some variables and one interaction are very small, indicating they are statistically significant and important. 
+Important variables and interactions: year, diff_origin, Interm, engraved, prevcoll,
+         finished, lrgfont, dealerL, log(Surface + 1), prevcoll1:finished1
+         
+For the year of sale, if one more year later, the painting price increse multiplicatively by 1.12 giving a range from 1.11 to 1.14, keeping other variables constant.
+When the origin is different from the origin based on dealers’ classification,the painting price would be 0.65 times the price of the painting when two origins are the same, giving a range from 0.54 to 0.81, keeping other variables constant.
+The price of painting with Interm would be 2.13 times the price of the painting without Interm giving a range from 1.63 to 2.77, keeping other variables constant.
+The price of painting with engravtion would be 1.99 times the price of the painting without engravtion giving a range from 1.49 to 2.66, keeping other variables constant.
+When the painting is not finished, and when the previous owner is mentioned, the price would be 2.94  times the price if the previous owner is not mentioned, giving a range from 2.10 to 4.10, keeping other variables constant. When the previous owner is not mentioned and the painting is finished, then the price would be 2.39  times the price if the painting not finished,giving a range from 1.97 to 2.89,  keeping other variables constant. When the painting is finished, and when the previous owner is mentioned, the price would be 0.32  times the price if the previous owner is not mentioned and painting is not finished, giving a range from 0.17 to 0.61, keeping other variables constant.
+The price of painting with lrgfont would be 2.48 times the price of the painting without lrgfont giving a range from 1.97 to 3.18, keeping other variables constant.
+Dealer L could make the price of paintings increase multiplicatively by 3.10 compared to dealer
+J,giving a range from 2.39 to 4.06, keeping other variables constant.
+
+log(Surface + 1)：？
 
 <!-- _Points will be deducted for code chunks that should not be included, etc._
 
