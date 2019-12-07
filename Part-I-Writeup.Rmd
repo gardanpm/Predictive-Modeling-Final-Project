@@ -117,14 +117,17 @@ paintings_test <- preprocess(paintings_test, rm_dup = F)
 ```
 
 
-  We start by exploring variables in the dataset and understand their meaning. We first implement the required data pre-processing:
+  We start by exploring variables in the training dataset and understand their meaning. We first implement the required data pre-processing:
   
   * transform empty string and "n/a" character to NA
   * Delete duplicate rows
-  * Transform binary variables to factors
+  * Transform binary and charcter variables to factors
   * Change `position` values not bounded from 0 to 1 to NA
   * Reconcile `Shape` coding (ovale = oval, round = ronde)
-  
+  * Impute the missing data
+    
+Imputation: We impute the mean of each quantitative column except Surface (heavily skewed right) for which we impute its median. For the binary and multiple level factor variables, we choose to impute the mode of each column.
+    
 we then see that some variables were used to classify each painting and therefore cannot be used in our analysis:
 `sale`, `lot`, `count`, `subject`, `authorstandard`, `author`, `subject`, `authorstyle`, `winningbidder`  
   
