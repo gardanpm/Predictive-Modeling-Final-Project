@@ -264,10 +264,10 @@ mtext("FIG 3: Distribution of log(price) across multilevel factors",
   Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `origin_author` as it has the highest r.squared (.15). The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different across dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. We can observe some differences accross buyers. We think that an explaination for these differences might be the intervention of intermediaries. Finally, the last three plots can be categorized as shape and material. These plots only explain an insignificant amount of the variance in `logprice`. However, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Regarding material, the interaction with `Surface` could be of interest.  
   
   
-  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables `year` and `Surface` we can see that they are quite strongly correlated with our response variable (.26, .17) and bring information about price evolution across years and accross the overall size of the painting. For the variables giving us information about the author, `diff_origin` (represents a difference between `origin_author` and `origin_cat`) has a correlation of about .33 with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and even though we do not think they are the most important variables, they will be considered in the model. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. We will therefore select it as one of the most important variables. Variable `interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` was the one with the highest correlation with `logprice` (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `engraved`, `prevcoll`, `finished`, `still_life` are chosen as well, given their high correlation with price.
+  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables `year` and `Surface`, one can see that they are quite strongly correlated with our response variable (r = .26 and .17) and bring information about price evolution across years and accross the overall size of the painting. For the variables giving us information on the author, `diff_origin` has a relatively strong correlation (about .33) with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and some of their imformation is already carried by `diff_origin`. Therefore, we decide to choose origin_author as it has the strongest r-squared. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. However, we can assume that it will be strongly correlated to `interm` and therefore select `endbuyer` (r.sq = .14) instead. Variable `interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` is the one with the highest correlation with the response (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `lands_sc`, `prevcoll`, `finished` are also considered important in predicting `logprice` with correlations between .15 and .25 and a low correlation with the other variables selected. 
   
-To summarize our analysis, we choose these 10 variables for our initial model:  
-`engraved`, `prevcoll`, `finished`, `lrgfont`, `still_life`, `winningbiddertype`, `interm`, `Surface`, `year`, `diff_origin`
+  Our 10 variables:  
+`lands_sc`, `prevcoll`, `finished`, `lrgfont`, `origin_author`, `endbuyer`, `interm`, `Surface`, `year`, `diff_origin`
   
   
 ## **Model Development and Assessment**
@@ -283,7 +283,7 @@ _* Residual: must include residual plot(s) and a discussion._
 _* Variables: must include table of coefficients and CI_-->
 
 ### Initial Model
-
+  
 ```{r initial model, results = "asis"}
 paintings_train_subset <- paintings_train %>%
   select(logprice, year, Surface, diff_origin, Interm, engraved, prevcoll,
@@ -299,10 +299,22 @@ model.init <- lm(logprice ~ . - Surface + log(Surface + 1) +
            finished:prevcoll,
          data = paintings_train_subset)
 
+
+
 #texreg(model.init)
-# NEED SOME WAY TO SHOW SUMMARY TABLES (MAYBE JUST R^2, ERROR, ETC.)
+a <- summary(model.init)
+model.init.summary = cbind(k = 69,
+                     error = 1.168,
+                     df = 1284,
+                     adj_r_sq = .6191,
+                     F_stat = '33.32***')
+colnames(model.init.summary) <- c("Nb Coeffiecients", 'Res Sd Error', "df (n-k)", "Adjusted r.sq", "F stat")
+model.init.summary %>% kable(caption = "Initial Model Summary")
 ```
-...for Pierre
+  In order to select our initial model with 10 to 20 variables, we first rely on our EDA and include the variables we selected as the 10 most important. We then look at what kind of new inforamtion about the response some additional variables could bring to us even with a low correlation.
+  Regarding the sale of the painting, we believe that knowing if the artist was alive at the time of the sale, what dealer sold the painting or if they engage with the authenticity of the painting might provide us with new information regarding `logprice`. Focusing on `Shape` and material, we imagine that knowing if a painting is round, oval or recangular may impact `logprice` at least a little bit and so would the use of different material. We decide to use `material_Cat` here as `mat` has a lot of different levels that could produced NA coefficients and irregularities with the test set. Now, exploring predictors related to the characteristics of the paintings, we know that `lands_figs` and `lands_elem` are correlated with each other and `logprice`. Therefore, we decide to only choose `lands_fig` as lands_elem also provide information aout `lands_elem`, a variable not so correlated with the response. Finally, `peasant`, `engraved`, `portrait` and `still-life` are all quite correlated with `logprice` and give us more specific about the paintings that we have not covered in our model yet. Variable `paired` was not used as we think that information it provides might already be covered by variable such as `lrgfont`, `dealer` or `endbuyer`. We also believe that most of the predicting power brought by `othrgenre` is supported by `peasant`.
+  
+  When thinking about the interactions, we try to use our intuition. The effect of `Shape` on the response might depend on the material used. In addition, the effect of an intermediary on prices might be different depending on the `dealer` or the `endbuyer`. In the same way, prices might change depending on who a specific dealer treats with or the origin of the author of a painting a specific dealer is trading. Finally, The price of a non finished painting might be different if the previous owner is known or not, for transparency reasons. 
 
 
 ### Model Selection
@@ -312,7 +324,7 @@ model.sel <- step(model.init, k=2, trace = F, direction = "both")
 #texreg(model.sel)
 ```
 
-From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to determine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 64 to 42; the adjusted $R^2$ also decreased slightly, from 0.6191 to 0.6141, so this much simpler model is basically explaining the same amount of variability in price.
+From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to determine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 64 to 36; the adjusted $R^2$ also decreased slightly, from 0.6191 to 0.6141, so this much simpler model is basically explaining the same amount of variability in price.
 
 ### Residual Plots
 ```{r residuals, warning = F}
@@ -347,7 +359,7 @@ Provide recommendations for the art historian about features or combination of f
 
 By observing the p-values of the coefficients, it is clear that most of the them are highly statistically significant. Some, mostly related to the shape of the painting and the origin of the painter, are not statistically significant. We decide to keep them in the model due to their possible correlation with other variables. Some of the most important variables and interactions in our model are `year`, `diff_origin`, `Interm`, `engraved`, `prevcoll`,`finished`, `lrgfont`, `dealerL`, `log(Surface + 1)` and `prevcoll1:finished1`. 
 
-The interpretation of the effects should take note that the response is in log. So, for a few examples: an additional year in the date of the sale is relatd to a price increse of 1.11 to 1.14 percent, keeping other variables constant. For another example, When the origin is different from the origin based on dealers’ classification,the painting price would be 0.65 times the price of the painting when two origins are the same, giving a range from 0.54 to 0.81, keeping other variables constant.The price of painting with Interm would be 2.13 times the price of the painting without Interm giving a range from 1.63 to 2.77, keeping other variables constant. Lastly, the price of painting with engravtion would be 1.99 times the price of the painting without engravtion giving a range from 1.49 to 2.66, keeping other variables constant. Regading interactions, only one was kept in the selection process, and therefore the ones we chose were not that helpful in predicting price. 
+The interpretation of the effects should take note that the response is in log. So, for a few examples: an additional year in the date of the sale is relatd to a price increse of 1.11 to 1.14 percent, keeping other variables constant. For another example, When the origin is different from the origin based on dealers’ classification,the painting price would be 0.65 times the price of the painting when two origins are the same, giving a range from 0.54 to 0.81, keeping other variables constant.The price of painting with an intermediary (`Interm`) would be 2.13 times the price of the painting without Interm giving a range from 1.63 to 2.77, keeping other variables constant. Lastly, the price of painting with engravtion would be 1.99 times the price of the painting without engravtion giving a range from 1.49 to 2.66, keeping other variables constant. Regarding interactions, only one was kept in the selection process, and therefore the ones we chose were not that helpful in predicting price. 
 
 The regression includes dummies and categorical factors, while dropping the "baseline" dummies. The baseline group in our model is paintings where:
 
@@ -367,7 +379,7 @@ The regression includes dummies and categorical factors, while dropping the "bas
 * endbuyer = B
 * Shape = miniature
 * origin_author = A
-* artistliving 0
+* artistliving = 0
 
 The median year in our sample is 1773 and the median `log(surface+1)` = 5.6. For a "median" observation, the predicted price is $e^{(-208.26+ 0.1179*1773 + 0.405*5.6)} = 21$ libres. 
 
