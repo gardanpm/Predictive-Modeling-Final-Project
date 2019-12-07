@@ -352,7 +352,7 @@ mtext("Residual plots for AIC-selected model",
       line = 0, side = 1, outer = T)
 ```
 
-From these residual plots of the simplified model, it appears that all the assumptions of linear regression are met.  The first plot shows residuals are independent and homoskedastic, and the second plot shows the residuals are very close to normally distributed.  There are a few possible outliers and two leverage points (at about $h_{ii} \approx 0.5$ and $h_{ii} \approx 1$): from the plot, the first point does not appear influential (Cook's Distance is below 0.5), but the second point might be.
+From these residual plots of the simplified model, it appears that all the assumptions of linear regression are met.  The first plot shows residuals are independent and homoskedastic, and the second plot shows the residuals are very close to normally distributed.  There are a few possible outliers and two leverage points (at about $h_{ii} \approx 0.5$ and $h_{ii} \approx 1$).  From the plot, the first point does not appear influential, but the second point might be.  However, the Cook's distance for both is under 0.015 (and removing these points does not really change the model), so for the sake of this analysis, we have not removed any observations.
 
 ### Included Coefficients
 
