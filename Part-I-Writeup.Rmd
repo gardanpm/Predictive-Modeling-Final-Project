@@ -305,14 +305,15 @@ model.init <- lm(logprice ~ . - Surface + log(Surface + 1) +
 
 
 #texreg(model.init)
-a <- summary(model.init)
-model.init.summary = cbind(k = 69,
-                     error = 1.168,
-                     df = 1284,
-                     adj_r_sq = .6191,
-                     F_stat = '33.32***')
-colnames(model.init.summary) <- c("Nb Coefficients", 'Res Sd Error', "df (n-k)", "Adjusted r.sq", "F stat")
-model.init.summary %>% kable(caption = "Initial Model Summary")
+init.sum <- summary(model.init)
+model.init.summary = cbind(k = init.sum$df[1],
+                     error = init.sum$sigma,
+                     df = init.sum$df[2],
+                     adj_r_sq = init.sum$adj.r.squared,
+                     F_stat = init.sum$fstatistic[1])
+colnames(model.init.summary) <- c("# Coefficients", 'Res Sd Error', "df (n-k)", "Adjusted r.sq", "F stat")
+model.init.summary %>%
+  kable(caption = "Initial Model Summary", digits = 4)
 ```
   
   
@@ -326,10 +327,21 @@ In order to select our initial model with 10 to 20 variables, we first rely on o
 
 ```{r model selection}
 model.sel <- step(model.init, k=2, trace = F, direction = "both")
+
 #texreg(model.sel)
+sel.sum <- summary(model.sel)
+model.sel.summary = cbind(k = sel.sum$df[1],
+                     error = sel.sum$sigma,
+                     df = sel.sum$df[2],
+                     adj_r_sq = sel.sum$adj.r.squared,
+                     F_stat = sel.sum$fstatistic[1])
+colnames(model.sel.summary) <- c("# Coefficients", 'Res Sd Error',
+                                  "df (n-k)", "Adjusted r.sq", "F stat")
+model.sel.summary %>%
+  kable(caption = "AIC-selected Model Summary", digits = 4)
 ```
 
-From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to determine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 64 to 36; the adjusted $R^2$ also decreased slightly, from 0.6191 to 0.6141, so this much simpler model is basically explaining the same amount of variability in price.
+From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to determine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 69 to 36; the adjusted $R^2$ also decreased slightly, from 0.6191 to 0.6141, so this much simpler model is basically explaining the same amount of variability in price.
 
 ### Residual Plots
 ```{r residuals, warning = F}
@@ -340,7 +352,7 @@ mtext("Residual plots for AIC-selected model",
       line = 0, side = 1, outer = T)
 ```
 
-From these residual plots of the simplified model, it appears that all the assumptions of linear regression are met.  The first plot shows residuals are independent and homoskedastic, and the second plot shows the residuals are very close to normally distributed.  There are a few possible outliers and three high leverage points (at about $h_{ii} \approx 0.5$), but they do not appear to be influential (Cook's distance is below 0.5).
+From these residual plots of the simplified model, it appears that all the assumptions of linear regression are met.  The first plot shows residuals are independent and homoskedastic, and the second plot shows the residuals are very close to normally distributed.  There are a few possible outliers and two leverage points (at about $h_{ii} \approx 0.5$ and $h_{ii} \approx 1$): from the plot, the first point does not appear influential (Cook's Distance is below 0.5), but the second point might be.
 
 ### Included Coefficients
 
