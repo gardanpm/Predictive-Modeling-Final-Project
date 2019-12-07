@@ -141,7 +141,7 @@ We decide to classify `year` as numeric in our analysis as it is spread around m
 # Quant var plot here 
 # name FIG 1
 ggpairs(paintings_train %>%
-          mutate(logSurface = log(Surface)) %>%
+          mutate(logSurface = log(Surface+1)) %>%
           select(position, year, nfigures, logSurface, logprice),
         title = "FIG 1: Relationship of relevant quantitative variables"
 )
@@ -179,7 +179,7 @@ ggplot(bin_price, aes(x=reorder(var, corr), y = corr, fill = corr))+
 
 ```
 
-Once we have an idea of the top binary variable candidates to include in our model, it is important to take a look at their correlations within themselves and with other variables. Fig 2b is a correlation matrix of select binary variables. From this plot, it is clear that there is no need to include more than one variable among `landsALL`, `lands_elem` and `lands_figs` as they are all related in content, highly correlated and have similar effect on prices. `singlefig` is strongly negatively correlated with the above three, and negatively correlated with price, so we should also consider dropping it if we select one of the others. `lrgfont` and `interm`, although both of them have a high correlation with prices, are also correlated between them, so we might consider choosing one of them.
+Once we have an idea of the top binary variable candidates to include in our model, it is important to take a look at their correlations within themselves and with other variables. Fig 2b is a correlation matrix of select binary variables. From this plot, it is clear that there is no need to include more than one variable among `landsALL`, `lands_elem` and `lands_figs` as they are all related in content, highly correlated and have similar effect on prices. `singlefig` is strongly negatively correlated with the above three, and negatively correlated with price, so we should also consider dropping it if we select one of the others. Regarding `lrgfont` and `interm`, although both of them have a high correlation with prices, they are also correlated with each other, so we might consider choosing one of them.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 bin_vars_subset <- as.character(bin_price$var[c(1:6,11, 24:29)])
@@ -236,7 +236,7 @@ boxplot(logprice~dealer, data = paintings_train,
 par(fig = c(.4,.65,.4,.65), new = TRUE)
 boxplot(logprice~winningbiddertype, data = paintings_train, 
   xlab='winningbiddertype', ylab='logprice', main = 
-    paste("winningbiddertype Vs. logprice R^2 = ", r.2[5], sep=""),
+    paste("biddertype Vs. logprice R^2 = ", r.2[5], sep=""),
   las=2)
 par(fig = c(.7,.95,.4,.65), new = TRUE)
 boxplot(logprice~endbuyer, data = paintings_train, 
@@ -261,10 +261,13 @@ mtext("FIG 3: Distribution of log(price) across multilevel factors",
 ```
    
    
-  Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `school_pntg`. The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different accross dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Therefore, looking at correlations accross these different variables might be of interest later on. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. Even though we observe some differences accross buyers, we think that an explaination for them would be the intervention of intermediaries. Finally, the last three plots can be categorized as shape and material. An important majority of the paintings are square rectangles. Therefore, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Finally, we see only little difference between material and `logprice`. However, the interaction between the material used and the Surface could be of interest.  
+  Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `origin_author` as it has the highest r.squared (.15). The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different accross dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. We can observe some differences accross buyers. We think that an explaination for these differences might be the intervention of intermediaries. Finally, the last three plots can be categorized as shape and material. These plots only explain an insignificant amount of the variance in `logprice`. However, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Regarding material, the interaction with `Surface` could be of interest.  
   
   
-The 10 variables that we would expect to be the most important in predicting `logprice` are :
+  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables `year` and `Surface` we can see that they are quite strongly correlated with our response variable (.26, .17) and bring information about price evolution across years and accross the overall size of the painting. For the variables giving us information about the author, `diff_origin` (represents a difference between `origin_author` and `origin_cat`) has a correlation of about .33 with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and even though we do not think they are the most important variables, they will be considered in the model. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. We will therefore select it as one of the most important variables. Variable `interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` was the one with the highest correlation with `logprice` (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `engraved`, `prevcoll`, `finished`, `still_life` 
+  
+  Our 10 variables:  
+`engraved`, `prevcoll`, `finished`, `lrgfont`, `still_life`, `winningbiddertype`, `interm`, `Surface`, `year`, `diff_origin`
   
   
 ## **Model Development and Assessment**
@@ -284,19 +287,23 @@ _* Variables: must include table of coefficients and CI_-->
 ```{r initial model, results = "asis"}
 paintings_train_subset <- paintings_train %>%
   select(logprice, year, Surface, diff_origin, Interm, engraved, prevcoll,
-         paired, figures,finished, lrgfont, lands_sc, peasant, portrait, still_life,
-         discauth, dealer, materialCat, endbuyer, Shape, school_pntg)
+         finished, lrgfont, lands_sc, peasant, portrait, still_life,
+         discauth, dealer, materialCat, endbuyer, Shape, origin_author,
+         lands_figs, artistliving)
 
 paintings_train_subset <- impute_NA(paintings_train_subset)
 
 model.init <- lm(logprice ~ . - Surface + log(Surface + 1) +
-         log(Surface + 1):materialCat + dealer:school_pntg + dealer:Interm +
-         endbuyer:Interm + finished:prevcoll, data = paintings_train_subset)
+         log(Surface + 1):materialCat + dealer:origin_author + 
+          dealer:Interm + endbuyer:Interm + dealer:endbuyer +
+           finished:prevcoll,
+         data = paintings_train_subset)
 
 #texreg(model.init)
 # NEED SOME WAY TO SHOW SUMMARY TABLES (MAYBE JUST R^2, ERROR, ETC.)
 ```
 ...for Pierre
+
 
 ### Model Selection
 
@@ -305,7 +312,7 @@ model.sel <- step(model.init, k=2, trace = F, direction = "both")
 #texreg(model.sel)
 ```
 
-From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to cetermine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 65 to 34; the $R^2$ also increased slightly, from 0.6132 to 0.6181, so this much simpler model is basically explaining the same amount of variability in price.
+From this initial model, we ran a stepwise selection algorithm (both directions) to reduce the number of coefficients, using AIC as our selection criteria.  Since our initial model relied on exploratory data analysis to cetermine which covariates seemed significant, this procedure gave us a more rigorous away to select the most important covariates and interactions in the dataset.  Furthermore, given the amount of coefficients in the initial model, it would not have been feasible to do check all subsets, so a stepwise procedure was the most efficient option.  This selection successfully simplified the model, reducing the number of coefficients from 64 to 42; the adjusted $R^2$ also decreased slightly, from 0.6191 to 0.6141, so this much simpler model is basically explaining the same amount of variability in price.
 
 ### Residual Plots
 ```{r residuals, warning = F}
