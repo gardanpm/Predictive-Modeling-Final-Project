@@ -306,7 +306,7 @@ model.init <- lm(logprice ~ . - Surface + log(Surface + 1) +
 
 #texreg(model.init)
 init.sum <- summary(model.init)
-model.init.summary = cbind(k = init.sum$df[1]+1,
+model.init.summary = cbind(k = init.sum$df[1],
                      error = init.sum$sigma,
                      df = init.sum$df[2],
                      adj_r_sq = init.sum$adj.r.squared,
