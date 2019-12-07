@@ -221,14 +221,14 @@ par(cex=.5, mai= c(.1,.1,.1,.1), oma = c(0,0,3,0))
 # position and build plots
 par(fig = c(.1,.35,.7,.95), new = TRUE)
 boxplot(logprice~origin_author, data = paintings_train, 
-  xlab='origin_author', ylab='logprice', main = paste("origin_author Vs. logprice R^2 = ", r.2[1], sep=""))
+  xlab='origin_author', ylab='logprice', main = paste("origin_author R^2 = ", r.2[1], sep=""))
 par(fig = c(.4,.65,.7,.95), new = TRUE)  
 boxplot(logprice~origin_cat, data = paintings_train, 
-  xlab='origin_cat', ylab='logprice', main = paste("origin_cat Vs. logprice R^2 = ", 
+  xlab='origin_cat', ylab='logprice', main = paste("origin_cat R^2 = ", 
                                                    r.2[2], sep=""))
 par(fig = c(.7,.95,.7,.95), new = TRUE)
 boxplot(logprice~school_pntg, data = paintings_train, 
-  xlab='school_pntg', ylab='logprice', main = paste("school_pntg Vs. logprice R^2 = ", r.2[3], sep=""))
+  xlab='school_pntg', ylab='logprice', main = paste("school_pntg R^2 = ", r.2[3], sep=""))
 par(fig = c(.1,.35,.4,.65), new = TRUE)
 boxplot(logprice~dealer, data = paintings_train, 
   xlab='dealer', ylab='logprice', main= paste(
@@ -236,23 +236,23 @@ boxplot(logprice~dealer, data = paintings_train,
 par(fig = c(.4,.65,.4,.65), new = TRUE)
 boxplot(logprice~winningbiddertype, data = paintings_train, 
   xlab='winningbiddertype', ylab='logprice', main = 
-    paste("biddertype Vs. logprice R^2 = ", r.2[5], sep=""),
+    paste("winningbiddertype R^2 = ", r.2[5], sep=""),
   las=2)
 par(fig = c(.7,.95,.4,.65), new = TRUE)
 boxplot(logprice~endbuyer, data = paintings_train, 
-  xlab='endbuyer', ylab='logprice', main = paste("endbuyer Vs. logprice R^2 = ", r.2[6], sep=""))
+  xlab='endbuyer', ylab='logprice', main = paste("endbuyer R^2 = ", r.2[6], sep=""))
 par(fig = c(.1,.35,.1,.35), new = TRUE)
 boxplot(logprice~Shape, data = paintings_train, 
-  xlab='Shape', ylab='logprice', main = paste("Shape Vs. logprice R^2 = ", r.2[7],
+  xlab='Shape', ylab='logprice', main = paste("Shape R^2 = ", r.2[7],
                                               sep=""), las=2)
 par(fig = c(.4,.65,.1,.35), new = TRUE)
 boxplot(logprice~mat, data = paintings_train, 
-  xlab='mat', ylab='logprice', main = paste("mat Vs. logprice R^2 = ", r.2[8],
+  xlab='mat', ylab='logprice', main = paste("mat R^2 = ", r.2[8],
                                               sep=""), las = 2)
 par(fig = c(.7,.95,.1,.35), new = TRUE)
 boxplot(logprice~materialCat, data = paintings_train, 
   xlab='materialCat', ylab='logprice', main = paste(
-    "materialCat Vs. logprice R^2 = ", r.2[9], sep=""))
+    "materialCat R^2 = ", r.2[9], sep=""))
 
 # Text for all plots combined
 mtext("FIG 3: Distribution of log(price) across multilevel factors",
@@ -308,10 +308,12 @@ model.init.summary = cbind(k = 69,
                      df = 1284,
                      adj_r_sq = .6191,
                      F_stat = '33.32***')
-colnames(model.init.summary) <- c("Nb Coeffiecients", 'Res Sd Error', "df (n-k)", "Adjusted r.sq", "F stat")
+colnames(model.init.summary) <- c("Nb Coefficients", 'Res Sd Error', "df (n-k)", "Adjusted r.sq", "F stat")
 model.init.summary %>% kable(caption = "Initial Model Summary")
 ```
-  In order to select our initial model with 10 to 20 variables, we first rely on our EDA and include the variables we selected as the 10 most important. We then look at what kind of new inforamtion about the response some additional variables could bring to us even with a low correlation.
+  
+  
+In order to select our initial model with 10 to 20 variables, we first rely on our EDA and include the variables we selected as the 10 most important. We then look at what kind of new inforamtion about the response some additional variables could bring to us even with a low correlation.
   Regarding the sale of the painting, we believe that knowing if the artist was alive at the time of the sale, what dealer sold the painting or if they engage with the authenticity of the painting might provide us with new information regarding `logprice`. Focusing on `Shape` and material, we imagine that knowing if a painting is round, oval or recangular may impact `logprice` at least a little bit and so would the use of different material. We decide to use `material_Cat` here as `mat` has a lot of different levels that could produced NA coefficients and irregularities with the test set. Now, exploring predictors related to the characteristics of the paintings, we know that `lands_figs` and `lands_elem` are correlated with each other and `logprice`. Therefore, we decide to only choose `lands_fig` as lands_elem also provide information aout `lands_elem`, a variable not so correlated with the response. Finally, `peasant`, `engraved`, `portrait` and `still-life` are all quite correlated with `logprice` and give us more specific about the paintings that we have not covered in our model yet. Variable `paired` was not used as we think that information it provides might already be covered by variable such as `lrgfont`, `dealer` or `endbuyer`. We also believe that most of the predicting power brought by `othrgenre` is supported by `peasant`.
   
   When thinking about the interactions, we try to use our intuition. The effect of `Shape` on the response might depend on the material used. In addition, the effect of an intermediary on prices might be different depending on the `dealer` or the `endbuyer`. In the same way, prices might change depending on who a specific dealer treats with or the origin of the author of a painting a specific dealer is trading. Finally, The price of a non finished painting might be different if the previous owner is known or not, for transparency reasons. 
