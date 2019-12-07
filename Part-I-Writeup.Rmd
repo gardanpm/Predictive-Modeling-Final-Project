@@ -357,8 +357,8 @@ When the painting is not finished, and when the previous owner is mentioned, the
 The price of painting with lrgfont would be 2.48 times the price of the painting without lrgfont giving a range from 1.97 to 3.18, keeping other variables constant.
 Dealer L could make the price of paintings increase multiplicatively by 3.10 compared to dealer
 J,giving a range from 2.39 to 4.06, keeping other variables constant.
+For surface, if log(Surface + 1) increase by 1, the painting price increse multiplicatively by 1.50 giving a range from 1.40 to 1.58, keeping other variables constant.
 
-log(Surface + 1)：？
 
 <!-- _Points will be deducted for code chunks that should not be included, etc._
 
