@@ -32,24 +32,24 @@ rmse_rf_train
 
 
 ```{r boosting}
-model_boosting = gbm(logprice ~ .,
-                     data = paintings_train_impute, 
+model_boosting = gbm(logprice ~  - Surface + log(Surface + 1) + year + diff_origin + Interm + engraved + prevcoll + finished + lrgfont + dealer + lands_sc + peasant + portrait + still_life + discauth + materialCat + endbuyer + origin_author +Shape + artistliving,
+         data = paintings_train_subset,
                      distribution = "gaussian",
                      n.trees = 1000)
 summary(model_boosting, plotit = F)
 
-predict_boosting_train = predict(model_boosting, newdata = paintings_train_impute, n.trees = 1000,type = "response")
+predict_boosting_train = predict(model_boosting, newdata = paintings_train_subset, n.trees = 1000,type = "response")
 predict_boosting_train = exp(predict_boosting_train)
-rmse_boosting_train = rmse(predict_boosting_train, exp(paintings_train_impute$logprice))
+rmse_boosting_train = rmse(predict_boosting_train, exp(paintings_train_subset$logprice))
 rmse_boosting_train 
-plot(exp(paintings_train_impute$logprice), predict_boosting_train)
+plot(exp(paintings_train_subset$logprice), predict_boosting_train)
 ```
 
 
 ```{r predict-model2, echo=FALSE}
 # replace model1 with model2 here
 predictions = as.data.frame(
-  exp(predict(model_rf, newdata = paintings_train_impute, 
+  exp(predict(model_boosting, newdata = paintings_train_subset, n.trees = 1000,
               interval = "pred")))
 save(predictions, file="predict-test.Rdata")
 ```
