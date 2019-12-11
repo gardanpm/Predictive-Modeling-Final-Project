@@ -1,0 +1,46 @@
+---
+title: "Part-II-Writeup"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(dplyr)
+library(randomForest)
+library(gbm)
+```
+
+```{r random forest}
+rmse <- function(obs, pred) {
+sqrt(sum((obs - pred)^2)/length(obs))
+}
+
+paintings_train_impute <- paintings_train %>% mutate(logSurface = log(Surface+1)) %>% select(diff_origin, artistliving, Interm, figures,engraved, original, prevcoll, othartist, paired, finished, lrgfont, relig, landsALL, lands_sc, lands_elem, lands_figs, lands_ment, arch, mytho, peasant, othgenre, singlefig, portrait, still_life, discauth, history, allegory, pastorale, other,origin_author, origin_cat, school_pntg, Shape,  mat, materialCat, dealer, winningbiddertype, endbuyer, type_intermed,position, year, logSurface, nfigures,logprice) %>% impute_NA()
+
+model_rf = randomForest(logprice ~ ., 
+                        data = paintings_train_impute,
+                        mtry = 8, na.action=na.roughfix,importance=TRUE)
+varImpPlot(model_rf)
+predict_rf_train = predict(model_rf)
+predict_rf_train = exp(predict_rf_train)
+rmse_rf_train = rmse(exp(paintings_train_impute$logprice), predict_rf_train)
+rmse_rf_train
+```
+
+
+```{r boosting}
+model_boosting = gbm(logprice ~ .,
+                     data = paintings_train_impute, 
+                     distribution = "gaussian",
+                     n.trees = 30000)
+summary(model_boosting, plotit = F)
+
+predict_boosting_train = predict(model_boosting, newdata = paintings_train_impute, n.trees = 10000,type = "response")
+predict_boosting_train = exp(predict_boosting_train)
+rmse_boosting_train = rmse(predict_boosting_train, exp(paintings_train_impute$logprice))
+rmse_boosting_train 
+plot(exp(paintings_train_impute$logprice), predict_boosting_train)
+```
