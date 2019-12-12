@@ -1,55 +1,396 @@
 ---
-title: "Part-II-Writeup"
-output: html_document
+title: "Final Project Part II"
+author: "Team_FP04"
+date: "12/13/2019"
+output:
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
-```{r packages}
-library(dplyr)
-library(randomForest)
-library(gbm)
+```{r library, message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(GGally)
+library(ggpubr)
+library(corrplot)
+library(ggthemes)
+library(knitr)
+library(texreg)
+library(BAS)
 ```
 
-```{r random forest}
-rmse <- function(obs, pred) {
-sqrt(sum((obs - pred)^2)/length(obs))
+
+```{r read-data, include=FALSE}
+load("paintings_train.Rdata")
+load("paintings_test.Rdata")
+load("paintings_validation.RData")
+```
+
+## **Introduction**
+
+<!--- 1. Introduction (1 point if improved from before)
+  add previous intro with any edits --->
+  
+  The 18th century is often refered to as "le siècle, des Lumières" (the century of the lights) in reference to the philosophers that emerged early on the 1700s leading the way towards the French Revolution. In addition to its important societal evolutions, the 18th century was also a major period for art in France and it is therefore of interest to understand painting trading during that period, especially before the French Revolution (1789).
+The aim of our analysis is to explore the factors that drove painting prices in 18th century Paris. The painting prices will be predicted from auction price data between 1764-1780 containing information on the sale (seller/buyer), the artist, and other characteristics of the painting. This analysis will also allow us to assess which paintings were overvalued or undervalued. 
+We will first explore the effects of potential predictors and their interactions on painting prices by conducting an Exploratory Data Analysis. This will also allow us to prepare the data for the next phase. We will then build a linear model using stepwise regression method with akaike information criterion (AIC) and a training subset to select a robust model predicting the auction price (using the log transformation `logprice`). We will then validate our model on a test subset.
+
+  
+  
+## **EDA**
+
+<!--_Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots._ -->
+
+<!---2. Exploratory data analysis (1 point if improved from before): 
+   add previous EDA --->
+  
+
+```{r pre processing, message=FALSE, warning=FALSE, include=FALSE}
+# Data pre-processing
+
+# Organize the variables into continuous/binary/multilevel categorical
+quant_vars <- names(paintings_train)[c(3,5,23:27,29,33)]
+bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
+cat_vars <- names(paintings_train)[c(4,6:8,19,20,22,28,30:32)]
+# The response and useless variables are not organized here
+
+# Function to replace NA values
+# If na_as_level = T, NAs in categorical vars get replaced with mode
+# If na_as_level = F, NA gets changed to a separate level
+impute_NA <- function(df, na_as_level = FALSE) {
+  
+  # For quantitative variables, replace with the mean
+  for (q in setdiff(quant_vars, "Surface")) {
+    if (!(q %in% names(df))) next
+    
+    mean_val <- mean(df[[q]], na.rm = TRUE)
+    replacement <- ifelse(typeof(df[[q]]) == "double",
+                          mean_val, as.integer(mean_val))
+    df[[q]][is.na(df[[q]])] <- replacement
+  }
+  
+  # SPECIAL CASE: Surface is skewed heavily right, so take the median
+  if ("Surface" %in% names(df)) {
+    med_val <- median(df$Surface, na.rm = TRUE)
+    df$Surface[is.na(df$Surface)] <- med_val
+  }
+  
+  # For categorical variables, replace with the mode
+  for (ct in c(cat_vars, bin_vars)) {
+    if (!(ct %in% names(df))) next
+    
+    if (na_as_level) {
+      df[[ct]] <- as.character(df[[ct]])
+      df[[ct]][is.na(df[[ct]])] <- "N/A"
+      df[[ct]] <- as.factor(df[[ct]])
+    }
+    else {
+      freq_tab <- table(df[[ct]])
+      mode_val <- names(freq_tab)[which.max(freq_tab)]
+      df[[ct]][is.na(df[[ct]])] <- mode_val
+    }
+  }
+  
+  return (df)
 }
 
-paintings_train_impute <- paintings_train %>% mutate(logSurface = log(Surface+1)) %>% select(diff_origin, artistliving, Interm, figures,engraved, original, prevcoll, othartist, paired, finished, lrgfont, relig, landsALL, lands_sc, lands_elem, lands_figs, lands_ment, arch, mytho, peasant, othgenre, singlefig, portrait, still_life, discauth, history, allegory, pastorale, other,origin_author, origin_cat, school_pntg, Shape,  mat, materialCat, dealer, winningbiddertype, endbuyer, type_intermed,position, year, logSurface, nfigures,logprice) %>% impute_NA()
+preprocess <- function(df, rm_dup = TRUE) {
+  
+  # Replacing empty string and n/a with actual NA
+  df[df == ""] <- NA
+  df[df == "n/a"] <- NA
+  
+  # Deleting replicates
+  if (rm_dup) {
+    df <- df %>% distinct()
+  }
+  
+  # Transform the categorical variables to factors
+  for(i in c(bin_vars, cat_vars)) {
+    df[,i] <- as.factor(df[,i])
+  }
+  
+  df$position <- ifelse(df$position >= 0 & df$position <= 1,
+                        df$position, NA)
+  # Can only have positive surface - need to adjust, since we take the log
+  df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
+  df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
 
-model_rf = randomForest(logprice ~ ., 
-                        data = paintings_train_impute,
-                        mtry = 8, na.action=na.roughfix,importance=TRUE)
-varImpPlot(model_rf)
-predict_rf_train = predict(model_rf)
-predict_rf_train = exp(predict_rf_train)
-rmse_rf_train = rmse(exp(paintings_train_impute$logprice), predict_rf_train)
-rmse_rf_train
+  return (df)
+}
+
+paintings_train <- preprocess(paintings_train)
+paintings_test <- preprocess(paintings_test, rm_dup = F)
+paintings_validation <- preprocess(paintings_validation, rm_dup = F)
 ```
 
 
-```{r boosting}
-model_boosting = gbm(logprice ~  - Surface + log(Surface + 1) + year + diff_origin + Interm + engraved + prevcoll + finished + lrgfont + dealer + lands_sc + peasant + portrait + still_life + discauth + materialCat + endbuyer + origin_author +Shape + artistliving,
-         data = paintings_train_subset,
-                     distribution = "gaussian",
-                     n.trees = 1000)
-summary(model_boosting, plotit = F)
+  We start by exploring variables in the training dataset and understand their meaning. We first implement the required data pre-processing:
+  
+  * transform empty string and "n/a" character to NA
+  * Delete duplicate rows
+  * Transform binary and charcter variables to factors
+  * Change `position` values not bounded from 0 to 1 to NA
+  * Reconcile `Shape` coding (ovale = oval, round = ronde)
+  * Impute the missing data
+    
+Imputation: We impute the mean of each quantitative column except Surface (heavily skewed right) for which we impute its median. For the binary and multiple level factor variables, we choose to impute the mode of each column.
+    
+we then see that some variables were used to classify each painting and therefore cannot be used in our analysis:
+`sale`, `lot`, `count`, `subject`, `authorstandard`, `author`, `subject`, `authorstyle`, `winningbidder`  
+  
+In addition, since we are predicting `logprice`, we will not used variable `price`.  
 
-predict_boosting_train = predict(model_boosting, newdata = paintings_train_subset, n.trees = 1000,type = "response")
-predict_boosting_train = exp(predict_boosting_train)
-rmse_boosting_train = rmse(predict_boosting_train, exp(paintings_train_subset$logprice))
-rmse_boosting_train 
-plot(exp(paintings_train_subset$logprice), predict_boosting_train)
+  We can classify the remaining variables in two different ways, either by the way they are coded (quantitative, dumy, multiple level factors) or by the information they provide (i.e. sale, author, size & material or characteristics). First, we goup variables according to the way they are coded:
+  
+### Quantitative Variables 
+`position`, `year`, `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in`, `Surface_Rnd`, `Surface`, `nfigures`  
+  
+We decide to classify `year` as numeric in our analysis as it is spread around more than twenty years. Using our intuition, we choose to only use  `Surface` and drop `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in` and `Surface_Rnd` as they are extremely correlated and would not necessarily bring any additional information. We might want to later investigate the relationship of `Surface` with other variables such as `Shape` or the type of material. We use a scatterplot matrix to investigate the relationship between these quantitative variables and `logprice` (FIG 1).  
+  
+  
+```{r Quant, echo=FALSE, message=FALSE, warning=FALSE}
+# Quant var plot here 
+# name FIG 1
+ggpairs(paintings_train %>%
+          mutate(logSurface = log(Surface+1)) %>%
+          select(position, year, nfigures, logSurface, logprice),
+        title = "FIG 1: Relationship of relevant quantitative variables"
+)
+```
+  
+    
+    
+We see that the quantitative predictors plotted here are not really correlated with each other. Variable `position` only has a small negative and not necessarily linear correlation with the response variable. `year` has a stronger effect on `logprice` (.26) and we could consider a sort of overall "inflation" on paintings even though it is not linear nor monotonic. `Surface` is also positively correlated with `logprice` (.17). Note here that we used a log transformation on `Surface` in order to make its relationship with `logprice` linear. Finally, variable `nfigures` behave in a strange way. While having no figure does not seem to give any information on `logprice`, we can see that for paintings with at least one figure, more figures is correlated with higher price. It will be interresting to explore the interraction of `nfigures` with some of the binary predictor variables that we explore next.  
+
+### Binary Variables
+`diff_origin`, `artistliving`, `Interm`, `figures`,`engraved`, `original`, `prevcoll`, `othartist`, `paired`, `finished`, `lrgfont`, `relig`, `landsALL`, `lands_sc`, `lands_elem`, `lands_figs`, `lands_ment`, `arch, mytho`, `peasant`, `othgenre`, `singlefig`, `portrait`, `still_life`, `discauth`, `history`, `allegory`, `pastorale`, `other`  
+  
+We present correlations between all the binary variables and log(price) (FIG 2a). Unsurprisingly, an additional paragraph in a larger font has a high correlation with price, suggesting that these paintings were the highlights in the different auctions. An intermediary also suggests a higher price, maybe because these individuals are involved mostly in high stakes sales. A mention of the previous owner and having a highly polished finishing are also factors that seem to drive up the price. Factors the drive the prices down are different origin of author and painting, if the content of the painting includes a "plain landscape", if the painting is just a "pairing" of another art work, and if the content is still life. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+bin_corr <- paintings_train %>% 
+  select(logprice, bin_vars) %>% 
+  mutate_all(.funs = as.numeric) %>% 
+  cor(use ="pairwise.complete.obs")
+
+# corrplot(bin_corr, order = "hclust",  tl.col = "black", tl.cex =0.8)
+
+bin_price <- data.frame(corr = bin_corr[1,],
+                var = row.names(bin_corr)) %>% 
+  arrange(-corr) %>% 
+  filter(var != "logprice") 
+
+ggplot(bin_price, aes(x=reorder(var, corr), y = corr, fill = corr))+
+  geom_bar(stat = "identity")+
+  coord_flip()+scale_fill_gradient2(low="firebrick", high="springgreen4", mid = "lightyellow")+
+  theme_bw()+
+  labs(title = "FIG 2a: Correlations of log(price) with Binary Variables")+
+  ylab("Correlation with log(price)")+
+  xlab("Binary Variables")+theme(legend.position = "none")
+
+```
+
+Once we have an idea of the top binary variable candidates to include in our model, it is important to take a look at their correlations within themselves and with other variables. Fig 2b is a correlation matrix of select binary variables. From this plot, it is clear that there is no need to include more than one variable among `landsALL`, `lands_elem` and `lands_figs` as they are all related in content, highly correlated and have similar effect on prices. `singlefig` is strongly negatively correlated with the above three, and negatively correlated with price, so we should also consider dropping it if we select one of the others. Regarding `lrgfont` and `interm`, although both of them have a high correlation with prices, they are also correlated with each other, so we might consider choosing one of them.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+bin_vars_subset <- as.character(bin_price$var[c(1:6,11, 24:29)])
+bin_corr_subset <- paintings_train %>% 
+  select(logprice, bin_vars_subset) %>% 
+  mutate_all(.funs = as.numeric) %>% 
+  cor(use ="pairwise.complete.obs")
+
+corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
+         title = "FIG 2b: Correlation plot of log(price) and select binary variables",
+         mar = c(0,0,2,0))
+
 ```
 
 
-```{r predict-model2, echo=FALSE}
-# replace model1 with model2 here
+
+
+
+### Multiple Level Factor Variable
+`origin_author`, `origin_cat`, `school_pntg`, `Shape`, `material`, `mat`, `materialCat`, `dealer`, `winningbiddertype`, `endbuyer`, `type_intermed`  
+  
+When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, `type_intermed` is also ignored for now but will be considered later for interactions. (FIG 3)  
+  
+```{r multiple lvl, echo=FALSE, message=FALSE, warning=FALSE}
+quant_var_to_plot <- c("origin_author", "origin_cat", "school_pntg", "dealer",  "winningbiddertype", "endbuyer", "Shape", "mat", "materialCat")
+
+r.2 = matrix(NA, 9,1)
+w = 0
+for(i in paintings_train[quant_var_to_plot]){
+w = w+1
+a <- summary(lm(logprice ~ i, data=paintings_train))[["r.squared"]]
+r.2[w] <- a
+}
+r.2 = round(r.2, 3)
+
+# reduce axis size and define margin
+par(cex=.5, mai= c(.1,.1,.1,.1), oma = c(0,0,3,0))
+
+# position and build plots
+par(fig = c(.1,.35,.7,.95), new = TRUE)
+boxplot(logprice~origin_author, data = paintings_train, 
+  xlab='origin_author', ylab='logprice', main = paste("origin_author R^2 = ", r.2[1], sep=""))
+par(fig = c(.4,.65,.7,.95), new = TRUE)  
+boxplot(logprice~origin_cat, data = paintings_train, 
+  xlab='origin_cat', ylab='logprice', main = paste("origin_cat R^2 = ", 
+                                                   r.2[2], sep=""))
+par(fig = c(.7,.95,.7,.95), new = TRUE)
+boxplot(logprice~school_pntg, data = paintings_train, 
+  xlab='school_pntg', ylab='logprice', main = paste("school_pntg R^2 = ", r.2[3], sep=""))
+par(fig = c(.1,.35,.4,.65), new = TRUE)
+boxplot(logprice~dealer, data = paintings_train, 
+  xlab='dealer', ylab='logprice', main= paste(
+    "dealer Vs. logprice R^2 = ", r.2[4], sep=""))
+par(fig = c(.4,.65,.4,.65), new = TRUE)
+boxplot(logprice~winningbiddertype, data = paintings_train, 
+  xlab='winningbiddertype', ylab='logprice', main = 
+    paste("winningbiddertype R^2 = ", r.2[5], sep=""),
+  las=2)
+par(fig = c(.7,.95,.4,.65), new = TRUE)
+boxplot(logprice~endbuyer, data = paintings_train, 
+  xlab='endbuyer', ylab='logprice', main = paste("endbuyer R^2 = ", r.2[6], sep=""))
+par(fig = c(.1,.35,.1,.35), new = TRUE)
+boxplot(logprice~Shape, data = paintings_train, 
+  xlab='Shape', ylab='logprice', main = paste("Shape R^2 = ", r.2[7],
+                                              sep=""), las=2)
+par(fig = c(.4,.65,.1,.35), new = TRUE)
+boxplot(logprice~mat, data = paintings_train, 
+  xlab='mat', ylab='logprice', main = paste("mat R^2 = ", r.2[8],
+                                              sep=""), las = 2)
+par(fig = c(.7,.95,.1,.35), new = TRUE)
+boxplot(logprice~materialCat, data = paintings_train, 
+  xlab='materialCat', ylab='logprice', main = paste(
+    "materialCat R^2 = ", r.2[9], sep=""))
+
+# Text for all plots combined
+mtext("FIG 3: Distribution of log(price) across multilevel factors",
+      line = 0, side = 3, outer = T)
+
+```
+   
+   
+  Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `origin_author` as it has the highest r.squared (.15). The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different across dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. We can observe some differences accross buyers. We think that an explaination for these differences might be the intervention of intermediaries. Finally, the last three plots can be categorized as shape and material. These plots only explain an insignificant amount of the variance in `logprice`. However, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Regarding material, the interaction with `Surface` could be of interest.  
+  
+  
+  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables `year` and `Surface`, one can see that they are quite strongly correlated with our response variable (r = .26 and .17) and bring information about price evolution across years and accross the overall size of the painting. For the variables giving us information on the author, `diff_origin` has a relatively strong correlation (about .33) with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and some of their imformation is already carried by `diff_origin`. Therefore, we decide to choose origin_author as it has the strongest r-squared. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. However, we can assume that it will be strongly correlated to `interm` and therefore select `endbuyer` (r.sq = .14) instead. Variable `interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` is the one with the highest correlation with the response (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `lands_sc`, `prevcoll`, `finished` are also considered important in predicting `logprice` with correlations between .15 and .25 and a low correlation with the other variables selected. 
+  
+  Our 10 variables:  
+`lands_sc`, `prevcoll`, `finished`, `lrgfont`, `origin_author`, `endbuyer`, `interm`, `Surface`, `year`, `diff_origin`
+  
+  
+## **Preliminary Model**
+
+<!--- 3. Discussion of preliminary model Part I (5 points)
+Discuss performance based on leader board results and suggested refinements. --->
+
+
+## **Development of Final Model**
+
+<!--- 4.  Development of the final model (20 points)
+
+* Final model: must include a summary table
+
+* Variables: must include an explanation
+
+* Variable selection/shrinkage: must use appropriate method and include an explanation
+
+
+* Residual: must include a residual plot and a discussion
+
+* discussion of how prediction intervals obtained --->
+
+```{r subsets used}
+train <- paintings_train %>%
+  # select manually the most important predictors
+  select(logprice, Surface, year,
+         Interm, engraved, prevcoll, finished,
+         lrgfont, lands_sc, peasant, portrait, still_life,
+         discauth, lands_figs, artistliving,
+         dealer, materialCat, endbuyer, Shape, origin_author) %>%
+  impute_NA()
+
+train
+```
+
+```{r bma fitting}
+bma2 <- bas.lm(logprice ~ . - Surface + log(Surface),
+               data = train,
+               prior = "g-prior",
+               alpha = nrow(train),
+               modelprior = uniform(),
+               method = "MCMC")
+```
+
+```{r bma plots}
+summary(bma2)
+```
+
+```{r bma prediction intervals}
+# From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
+predict_train <- predict(bma2, estimator = "BPM", se.fit = TRUE)
+# Get prediction intervals into a dataframe like this
+pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
+pi_train
+```
+
+```{r bma analysis}
+rmse <- function(obs, pred) {
+  sqrt(sum((obs - pred)^2)/length(obs))
+}
+
+# Compare BMA RMSE to a baseline
+null_model <- lm(logprice ~ 1, data = train)
+
+rmse(exp(train$logprice), exp(predict(null_model)))
+rmse(exp(train$logprice), exp(predict(model.sel)))
+rmse(exp(train$logprice), exp(pi_train$pred))
+```
+
+
+## **Assessment of Final Model**
+
+<!--- 5. Assessment of the final model (25 points)
+
+
+* Model evaluation: must include an evaluation discussion
+
+* Model testing : must include a discussion
+
+* Model result: must include a selection and discussion of the top 10 valued  paintings in the validation data. --->
+
+
+## **Conclusion**
+
+<!--- 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time. --->
+
+
+## **Final Predictions**
+
+<!-- TEST SET -->
+
+```{r predict-test, echo=FALSE, eval=FALSE}
+# DON'T RUN YET
 predictions = as.data.frame(
-  exp(predict(model_boosting, newdata = paintings_train_subset, n.trees = 1000,
+  exp(predict(model1, newdata=paintings_test, 
               interval = "pred")))
 save(predictions, file="predict-test.Rdata")
+```
+
+<!-- VALIDATION SET:
+Create predictions for the validation data from your final model using the dataframe `paintings_validation.Rdata` in your repo.  You may refit your final model to the combined training and test data.  Write predictions out to a file `prediction-validation.Rdata`
+*This should have the same format as the model output in Part I and II!* -->
+
+```{r prediction-validation, echo=FALSE, eval=FALSE}
+# replace model1 with model2 here
+predictions = as.data.frame(
+  exp(predict(model1, newdata=paintings_validation, 
+              interval = "pred")))
+save(predictions, file="prediction-validation.Rdata")
 ```
