@@ -329,12 +329,12 @@ bma2 <- bas.lm(logprice ~ . - Surface + log(Surface),
 ```
 
 ```{r bma plots}
-summary(bma2)
+plot(bma2, which = 4)
 ```
 
 ```{r bma prediction intervals}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
-predict_train <- predict(bma2, estimator = "BPM", se.fit = TRUE)
+predict_train <- predict(bma2, estimator = "BMA", se.fit = TRUE)
 # Get prediction intervals into a dataframe like this
 pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
 pi_train
@@ -349,7 +349,7 @@ rmse <- function(obs, pred) {
 null_model <- lm(logprice ~ 1, data = train)
 
 rmse(exp(train$logprice), exp(predict(null_model)))
-rmse(exp(train$logprice), exp(predict(model.sel)))
+#rmse(exp(train$logprice), exp(predict(model.sel)))
 rmse(exp(train$logprice), exp(pi_train$pred))
 ```
 
@@ -376,11 +376,12 @@ rmse(exp(train$logprice), exp(pi_train$pred))
 <!-- TEST SET -->
 
 ```{r predict-test, echo=FALSE, eval=FALSE}
-# DON'T RUN YET
-predictions = as.data.frame(
-  exp(predict(model1, newdata=paintings_test, 
-              interval = "pred")))
-save(predictions, file="predict-test.Rdata")
+predictions_test = as.data.frame(
+  exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
+              estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
+) %>%
+  select(fit = 3, lwr = 1, upr = 2)
+save(predictions_test, file="predict-test.Rdata")
 ```
 
 <!-- VALIDATION SET:
@@ -388,11 +389,12 @@ Create predictions for the validation data from your final model using the dataf
 *This should have the same format as the model output in Part I and II!* -->
 
 ```{r prediction-validation, echo=FALSE, eval=FALSE}
-# replace model1 with model2 here
-predictions = as.data.frame(
-  exp(predict(model1, newdata=paintings_validation, 
-              interval = "pred")))
-save(predictions, file="prediction-validation.Rdata")
+predictions_validation = as.data.frame(
+  exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
+              estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
+) %>%
+  select(fit = 3, lwr = 1, upr = 2)
+save(predictions_validation, file="prediction-validation.Rdata")
 ```
 
 
