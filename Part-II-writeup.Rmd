@@ -378,12 +378,12 @@ rmse(exp(train$logprice), exp(pi_train$pred))
 <!-- TEST SET -->
 
 ```{r predict-test, echo=FALSE, eval=FALSE}
-predictions_test = as.data.frame(
+predictions = as.data.frame(
   exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
-save(predictions_test, file="predict-test.Rdata")
+save(predictions, file="predict-test.Rdata")
 ```
 
 <!-- VALIDATION SET:
@@ -391,12 +391,12 @@ Create predictions for the validation data from your final model using the dataf
 *This should have the same format as the model output in Part I and II!* -->
 
 ```{r prediction-validation, echo=FALSE, eval=FALSE}
-predictions_validation = as.data.frame(
+predictions = as.data.frame(
   exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
-save(predictions_validation, file="prediction-validation.Rdata")
+save(predictions, file="prediction-validation.Rdata")
 ```
 
 
