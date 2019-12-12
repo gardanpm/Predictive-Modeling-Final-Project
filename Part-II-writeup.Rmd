@@ -312,6 +312,10 @@ Looking back, we observe we had low bias and low training RMSE compared to other
 
 * discussion of how prediction intervals obtained --->
 
+We chose to use BMA to produce our final model for this task. The advantages of using BMA is that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty, includes a version of selection by shrinking unnecessary coefficients towards zero. 
+
+Since our first model overfitted the data, even after model selection, we felt it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. 
+
 ```{r subsets used}
 train <- paintings_train %>%
   # select manually the most important predictors
@@ -321,8 +325,6 @@ train <- paintings_train %>%
          discauth, lands_figs, artistliving,
          dealer, materialCat, endbuyer, Shape, origin_author) %>%
   impute_NA()
-
-train
 ```
 
 ```{r bma fitting}
@@ -333,6 +335,20 @@ bma2 <- bas.lm(logprice ~ . - Surface + log(Surface),
                modelprior = uniform(),
                method = "MCMC")
 ```
+
+```{r bma diagnostics}
+diagnostics(bma2)
+```
+
+```{r bma coefs}
+kable(summary(bma2), digits = 3)
+```
+
+
+```{r bma image}
+image(bma2, cex.axis = 0.45) 
+```
+
 
 ```{r bma plots}
 plot(bma2, which = 4)
