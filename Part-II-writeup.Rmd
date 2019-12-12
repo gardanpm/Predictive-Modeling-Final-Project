@@ -18,6 +18,7 @@ library(corrplot)
 library(ggthemes)
 library(knitr)
 library(texreg)
+library(BAS)
 ```
 
 
@@ -122,6 +123,7 @@ preprocess <- function(df, rm_dup = TRUE) {
 
 paintings_train <- preprocess(paintings_train)
 paintings_test <- preprocess(paintings_test, rm_dup = F)
+paintings_validation <- preprocess(paintings_validation, rm_dup = F)
 ```
 
 
@@ -304,6 +306,53 @@ Discuss performance based on leader board results and suggested refinements. ---
 
 * discussion of how prediction intervals obtained --->
 
+```{r subsets used}
+train <- paintings_train %>%
+  # select manually the most important predictors
+  select(logprice, Surface, year,
+         Interm, engraved, prevcoll, finished,
+         lrgfont, lands_sc, peasant, portrait, still_life,
+         discauth, lands_figs, artistliving,
+         dealer, materialCat, endbuyer, Shape, origin_author) %>%
+  impute_NA()
+
+train
+```
+
+```{r bma fitting}
+bma2 <- bas.lm(logprice ~ . - Surface + log(Surface),
+               data = train,
+               prior = "g-prior",
+               alpha = nrow(train),
+               modelprior = uniform(),
+               method = "MCMC")
+```
+
+```{r bma plots}
+summary(bma2)
+```
+
+```{r bma prediction intervals}
+# From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
+predict_train <- predict(bma2, estimator = "BPM", se.fit = TRUE)
+# Get prediction intervals into a dataframe like this
+pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
+pi_train
+```
+
+```{r bma analysis}
+rmse <- function(obs, pred) {
+  sqrt(sum((obs - pred)^2)/length(obs))
+}
+
+# Compare BMA RMSE to a baseline
+null_model <- lm(logprice ~ 1, data = train)
+
+rmse(exp(train$logprice), exp(predict(null_model)))
+rmse(exp(train$logprice), exp(predict(model.sel)))
+rmse(exp(train$logprice), exp(pi_train$pred))
+```
+
 
 ## **Assessment of Final Model**
 
@@ -327,9 +376,7 @@ Discuss performance based on leader board results and suggested refinements. ---
 <!-- TEST SET -->
 
 ```{r predict-test, echo=FALSE, eval=FALSE}
-# PLACEHOLDER
-model1 <- lm(logprice ~ 1, data = paintings_train)
-
+# DON'T RUN YET
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
               interval = "pred")))
