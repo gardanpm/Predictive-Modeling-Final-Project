@@ -292,6 +292,10 @@ mtext("FIG 3: Distribution of log(price) across multilevel factors",
 <!--- 3. Discussion of preliminary model Part I (5 points)
 Discuss performance based on leader board results and suggested refinements. --->
 
+In part A of the project, we ran stepwise selection on the 10 variables we indetified as important in the EDA, along with a few interactions that looked relevant in the data (`log(Surface + 1):materialCat`, ` dealer:origin_author`, `dealer:Interm`, `endbuyer:Interm`, `dealer:endbuyer` and `finished:prevcoll`). The initial model included 77 coefficients, since many of our variables are categorical variables that were transformed into binary variables in the regression. After stepwise selection with AIC as the selection criteria and two-directional search, we ended up with a model with 36 coefficients. We chose this model as our model for prediction.
+
+Looking back, we observe we had low bias and low training RMSE compared to other groups, but very high test RMSE. This suggests we overfit the model, even after running the stepwise model selection. Possibly, we should have used a different criteria for model selection. On the same initial model, running stepwise selection with BIC instead of AIC results in a smaller model with only 24 coefficients. Comparing the two options, BIC has a lower $R^2$ (0.6 compared to 0.614) and a higher residual se (1.19 compared to 1.17). Again, this is further evidence that the AIC-based selection process seemed a better option, but actually was overfitting the training data. 
+
 
 ## **Development of Final Model**
 
