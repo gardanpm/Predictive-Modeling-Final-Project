@@ -327,12 +327,12 @@ train <- paintings_train %>%
 ```
 
 ```{r bma fitting}
-bma2 <- bas.lm(logprice ~ . - Surface + log(Surface),
-               data = train,
-               prior = "g-prior",
-               alpha = nrow(train),
-               modelprior = uniform(),
-               method = "MCMC")
+bma <- bas.lm(logprice ~ . - Surface + log(Surface) +,
+              data = train,
+              prior = "g-prior",
+              alpha = nrow(train),
+              modelprior = uniform(),
+              method = "MCMC")
 ```
 
 ```{r bma diagnostics}
@@ -384,21 +384,32 @@ rmse(exp(train$logprice), exp(pi_train$pred))
 
 * Model testing : must include a discussion
 
-* Model result: must include a selection and discussion of the top 10 valued  paintings in the validation data. --->
+* Model result: must include a selection and discussion of the top 10 valued paintings in the validation data. --->
 
 
 ## **Conclusion**
 
-<!--- 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time. --->
+<!--- 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time. --->   
 
 
 ## **Final Predictions**
 
+<!-- TRAINING SET -->
+
+```{r predict train, echo=FALSE, eval=FALSE}
+predictions = as.data.frame(
+  exp(confint(predict(bma2, newdata = paintings_train %>% impute_NA(), 
+              estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_train),])
+) %>%
+  select(fit = 3, lwr = 1, upr = 2)
+save(predictions, file="predict-train.Rdata")
+```
+
 <!-- TEST SET -->
 
-```{r predict-test, echo=FALSE, eval=FALSE}
+```{r predict test, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
+  exp(confint(predict(bma2, newdata = paintings_test %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -409,13 +420,13 @@ save(predictions, file="predict-test.Rdata")
 Create predictions for the validation data from your final model using the dataframe `paintings_validation.Rdata` in your repo.  You may refit your final model to the combined training and test data.  Write predictions out to a file `prediction-validation.Rdata`
 *This should have the same format as the model output in Part I and II!* -->
 
-```{r prediction-validation, echo=FALSE, eval=FALSE}
+```{r prediction validation, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
   exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
-save(predictions, file="prediction-validation.Rdata")
+save(predictions, file="predict-validation.Rdata")
 ```
 
 
