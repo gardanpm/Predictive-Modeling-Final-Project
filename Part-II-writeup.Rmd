@@ -34,10 +34,12 @@ load("paintings_validation.RData")
   add previous intro with any edits --->
   
   The 18th century is often refered to as "le siècle, des Lumières" (the century of the lights) in reference to the philosophers that emerged early on the 1700s leading the way towards the French Revolution. In addition to its important societal evolutions, the 18th century was also a major period for art in France and it is therefore of interest to understand painting trading during that period, especially before the French Revolution (1789).
+
 The aim of our analysis is to explore the factors that drove painting prices in 18th century Paris. The painting prices will be predicted from auction price data between 1764-1780 containing information on the sale (seller/buyer), the artist, and other characteristics of the painting. This analysis will also allow us to assess which paintings were overvalued or undervalued. 
+
 We will first explore the effects of potential predictors and their interactions on painting prices by conducting an Exploratory Data Analysis. This will also allow us to prepare the data for the next phase. We will then build a linear model using stepwise regression method with akaike information criterion (AIC) and a training subset to select a robust model predicting the auction price (using the log transformation `logprice`). We will then validate our model on a test subset.
 
-  
+In the second phase of the analysis, we will revisit the linear model and assess the quality of the fit. Possibly, given the limitations of the linear model, the results can be improved by addressing issues such as overfitting or bias. We will consider more complex techniniques to produce a better fitting model that will have better out-of-sample predictions. We will consider several different options, including BMA, random forests and boosting, in order to find the model that performs best on the test data.   
   
 ## **EDA**
 
