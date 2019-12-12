@@ -307,7 +307,6 @@ Looking back, we observe we had low bias and low training RMSE compared to other
 
 * Variable selection/shrinkage: must use appropriate method and include an explanation
 
-
 * Residual: must include a residual plot and a discussion
 
 * discussion of how prediction intervals obtained --->
