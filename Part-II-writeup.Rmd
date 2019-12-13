@@ -138,7 +138,7 @@ preprocess <- function(df, rm_dup = TRUE) {
            quartiles_winningBidder = ntile(logprice, n=4),
            highest_winningBidder = row<=10,
            lowest_winningBidder = row >= n() - 10) %>% 
-    select(-row)
+    select(winningbidder, quartiles_winningBidder, lowest_winningBidder, highest_winningBidder)
   
   quartiles_authors <- df %>% 
     group_by(authorstandard) %>% 
@@ -149,7 +149,7 @@ preprocess <- function(df, rm_dup = TRUE) {
            quartiles_authors = ntile(logprice, n=4),
            highest_authors = row<=10, 
            lowest_authors = row >= n() - 10) %>% 
-    select(-row)
+    select(authorstandard, quartiles_authors, lowest_authors, highest_authors)
   
   df <- df %>% 
     mutate(year = as.factor(year)) %>% 
@@ -360,10 +360,13 @@ full_train <- paintings_train %>%
          Interm, engraved, prevcoll, finished,
          lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
-         dealer, origin_author, materialCat)
+         dealer, origin_author, materialCat, 
+         quartiles_authors, quartiles_winningBidder,
+         highest_winningBidder, highest_authors,
+         lowest_winningBidder, lowest_authors)
 
 set.seed(100)
-subset <- sample(1:nrow(raw_train), 1000)
+subset <- sample(1:nrow(full_train), 1000)
 train <- full_train[subset,] %>% impute_NA()
 test <- full_train[-subset,] %>% impute_NA()
 ```
