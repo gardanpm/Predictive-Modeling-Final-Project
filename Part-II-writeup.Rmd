@@ -126,7 +126,28 @@ preprocess <- function(df, rm_dup = TRUE) {
   if ("Shape" %in% names(df)) {
     df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
   }
-
+  
+  
+  # part 2 additions
+  quartiles_winningBidder <- df %>% 
+    group_by(winningbidder) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(quartiles_winningBidder = ntile(logprice, n=4))
+  
+  quartiles_authors <- df %>% 
+    group_by(authorstandard) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(quartiles_authors = ntile(logprice, n=4))
+  
+  df <- df %>% 
+    mutate(year = as.factor(year)) %>% 
+    left_join(quartiles_winningBidder) %>% 
+    left_join(quartiles_authors)
+  
   return (df)
 }
 
