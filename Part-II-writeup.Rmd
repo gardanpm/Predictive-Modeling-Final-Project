@@ -343,8 +343,8 @@ test <- raw_train[-subset,] %>% impute_NA()
 full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
 ```
-Significant interactions: year:discauth* + year:artistliving* + Interm:discauth*** +
-Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
+<!-- Significant interactions: year:discauth* + year:artistliving* + Interm:discauth*** +
+Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat* -->
 
 ```{r bma fitting}
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
@@ -412,6 +412,21 @@ plot(bma, which = 4)
 
 * Model result: must include a selection and discussion of the top 10 valued paintings in the validation data. --->
 
+### Model Evaluation
+
+### Model Testing
+
+### Top 10 Paintings
+
+```{r top ten}
+paintings_validation %>%
+  impute_NA() %>%
+  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "BMA")$fit)) %>%
+  arrange(desc(predict_price)) %>%
+  slice(1:10) %>%
+  select(predict_price, author, subject)
+```
+
 
 ## **Conclusion**
 
@@ -424,7 +439,7 @@ plot(bma, which = 4)
 
 ```{r predict train, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_train %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_train %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_train),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -435,7 +450,7 @@ save(predictions, file="predict-train.Rdata")
 
 ```{r predict test, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_test %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_test %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -448,7 +463,7 @@ Create predictions for the validation data from your final model using the dataf
 
 ```{r prediction validation, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_validation %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
