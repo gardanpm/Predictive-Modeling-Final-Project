@@ -174,6 +174,7 @@ paintings_validation <- preprocess(paintings_validation, rm_dup = F)
   * Transform binary and charcter variables to factors
   * Change `position` values not bounded from 0 to 1 to NA
   * Reconcile `Shape` coding (ovale = oval, round = ronde)
+  * Group `authorstandard` and `winningbidder` into quartiles
   * Impute the missing data
     
 Imputation: We impute the mean of each quantitative column except Surface (heavily skewed right) for which we impute its median. For the binary and multiple level factor variables, we choose to impute the mode of each column.
@@ -188,22 +189,24 @@ In addition, since we are predicting `logprice`, we will not used variable `pric
 ### Quantitative Variables 
 `position`, `year`, `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in`, `Surface_Rnd`, `Surface`, `nfigures`  
   
-We decide to classify `year` as numeric in our analysis as it is spread around more than twenty years. Using our intuition, we choose to only use  `Surface` and drop `Height_in`, `Width_in`, `Surface_Rect`, `Diam_in` and `Surface_Rnd` as they are extremely correlated and would not necessarily bring any additional information. We might want to later investigate the relationship of `Surface` with other variables such as `Shape` or the type of material. We use a scatterplot matrix to investigate the relationship between these quantitative variables and `logprice` (FIG 1).  
+Using our intuition, to investigate the effects of the size of paintings, we choose to only use  `Surface`, `Height_in` and `Weight_in` and drop `Surface_Rect`, `Diam_in` and `Surface_Rnd` as they are extremely correlated and would not necessarily bring any additional information. We will most likely end-up using only one of these three variables as they are probably correlated with each other. We might want to later investigate their relationship with other variables such as `Shape` or the type of material. From a first glance at the relationship between `Surface` and `logprice`, we decide on a log transformation to ensure linearity. 
+We use a scatterplot matrix to investigate the relationship between quantitative variables and `logprice` (FIG 1).  
   
   
 ```{r Quant, echo=FALSE, message=FALSE, warning=FALSE}
 # Quant var plot here 
 # name FIG 1
 ggpairs(paintings_train %>%
-          mutate(logSurface = log(Surface+1)) %>%
-          select(position, year, nfigures, logSurface, logprice),
+          mutate(logSurface = log(Surface)) %>%
+          select(position, nfigures, Width_in, Height_in,
+                 logSurface, logprice),
         title = "FIG 1: Relationship of relevant quantitative variables"
 )
 ```
   
     
     
-We see that the quantitative predictors plotted here are not really correlated with each other. Variable `position` only has a small negative and not necessarily linear correlation with the response variable. `year` has a stronger effect on `logprice` (.26) and we could consider a sort of overall "inflation" on paintings even though it is not linear nor monotonic. `Surface` is also positively correlated with `logprice` (.17). Note here that we used a log transformation on `Surface` in order to make its relationship with `logprice` linear. Finally, variable `nfigures` behave in a strange way. While having no figure does not seem to give any information on `logprice`, we can see that for paintings with at least one figure, more figures is correlated with higher price. It will be interresting to explore the interraction of `nfigures` with some of the binary predictor variables that we explore next.  
+We see that the quantitative predictors plotted here are not really correlated with each other except for the variables related to the size of paintings. `log(Surface)`, `Height_in`, `Width_in` are strongly correlated with each other as expected. `log(Surface)` has the strongest relationship with `logprice` (r = .17). Variable `position` only has a small negative and not necessarily linear correlation with the response variable. Finally, variable `nfigures` behave in a strange way. While having no figure does not seem to give any information on `logprice`, we can see that for paintings with at least one figure, more figures is correlated with higher price. It will be interresting to explore the interraction of `nfigures` with some of the binary predictor variables that we explore next.  
 
 ### Binary Variables
 `diff_origin`, `artistliving`, `Interm`, `figures`,`engraved`, `original`, `prevcoll`, `othartist`, `paired`, `finished`, `lrgfont`, `relig`, `landsALL`, `lands_sc`, `lands_elem`, `lands_figs`, `lands_ment`, `arch, mytho`, `peasant`, `othgenre`, `singlefig`, `portrait`, `still_life`, `discauth`, `history`, `allegory`, `pastorale`, `other`  
@@ -254,9 +257,9 @@ corrplot(bin_corr_subset, order = "hclust",  tl.col = "black", tl.cex =0.8,
 
 
 ### Multiple Level Factor Variable
-`origin_author`, `origin_cat`, `school_pntg`, `Shape`, `material`, `mat`, `materialCat`, `dealer`, `winningbiddertype`, `endbuyer`, `type_intermed`  
+`year`, `origin_author`, `origin_cat`, `school_pntg`, `Shape`, `material`, `mat`, `materialCat`, `dealer`, `winningbiddertype`, `endbuyer`, `type_intermed`  
   
-When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, `type_intermed` is also ignored for now but will be considered later for interactions. (FIG 3)  
+We decide to transform `year` as a factor as its relationship with `logprice` is not linear. When investigating the material variable, we decide to exclude `material` as it has too many levels. As it has an important number of NA values, `type_intermed` is also ignored. (FIG 3)  
   
 ```{r multiple lvl, echo=FALSE, message=FALSE, warning=FALSE}
 quant_var_to_plot <- c("origin_author", "origin_cat", "school_pntg", "dealer",  "winningbiddertype", "endbuyer", "Shape", "mat", "materialCat")
@@ -309,6 +312,21 @@ boxplot(logprice~materialCat, data = paintings_train,
   xlab='materialCat', ylab='logprice', main = paste(
     "materialCat R^2 = ", r.2[9], sep=""))
 
+#par(fig = c(), new = TRUE)
+#boxplot(logprice~year, data = paintings_train, 
+#  xlab='year', ylab='logprice', main = paste(
+#    "year R^2 = ", r.2[], sep=""))
+
+#par(fig = c(), new = TRUE)
+#boxplot(logprice~year, data = paintings_train, 
+#  xlab='year', ylab='logprice', main = paste(
+#    "year R^2 = ", r.2[], sep=""))
+
+#par(fig = c(), new = TRUE)
+#boxplot(logprice~year, data = paintings_train, 
+#  xlab='year', ylab='logprice', main = paste(
+#    "year R^2 = ", r.2[], sep=""))
+
 # Text for all plots combined
 mtext("FIG 3: Distribution of log(price) across multilevel factors",
       line = 0, side = 3, outer = T)
@@ -316,10 +334,10 @@ mtext("FIG 3: Distribution of log(price) across multilevel factors",
 ```
    
    
-  Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `origin_author` as it has the highest r.squared (.15). The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different across dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. We can observe some differences accross buyers. We think that an explaination for these differences might be the intervention of intermediaries. Finally, the last three plots can be categorized as shape and material. These plots only explain an insignificant amount of the variance in `logprice`. However, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Regarding material, the interaction with `Surface` could be of interest.  
+  Using intuition, we could classify the first three plots regarding `origin_author`, `origin_cat` and `school_pntg` as information about the author. We expect these variables to be correlated with each other and therefore only using one of them would most likely give us enough information. We decide here to select `origin_author` as it has the highest r.squared (.15). The next three plots give us information about the sale of each painting. Looking at the `dealer` plot, we see that sale prices seem to be a little different across dealers. This might be explained by the kind of painting they each sale or by the kind of client they reach to. Now focusing on the `winningbiddertype` and `endbuyer` plots, we can deduce that these two variables inform on the buyer and so are probably highly correlated with each other. We can observe some differences accross buyers. We think that an explaination for these differences might be the intervention of intermediaries. The `year` plot shows that prices are quite different accros years and that even if we see and overall inflation, it is not continuous nor monotonic.  Finally, the last three plots can be categorized as shape and material. These plots only explain an insignificant amount of the variance in `logprice`. However, the effect of a different shape as well as the interaction between the `Shape` and `Surface` might be worth looking at in our model building. Regarding material, the interaction with `Surface` could be of interest.  
   
   
-  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables `year` and `Surface`, one can see that they are quite strongly correlated with our response variable (r = .26 and .17) and bring information about price evolution across years and accross the overall size of the painting. For the variables giving us information on the author, `diff_origin` has a relatively strong correlation (about .33) with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and some of their imformation is already carried by `diff_origin`. Therefore, we decide to choose origin_author as it has the strongest r-squared. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. However, we can assume that it will be strongly correlated to `interm` and therefore select `endbuyer` (r.sq = .14) instead. Variable `interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` is the one with the highest correlation with the response (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `lands_sc`, `prevcoll`, `finished` are also considered important in predicting `logprice` with correlations between .15 and .25 and a low correlation with the other variables selected. 
+  From our EDA, we are able to extract what we consider the 10 most important variables to predict `logprice`. Looking at the quantitative variables, one can see that the log transformation of `Surface` is quite strongly correlated with our response variable (r = .17) and bring information about price evolution across sizes of paintings. `year` here has a strong predictie power (r-squared = ) and is therefore an important variable. For the variables giving us information on the author, `diff_origin` has a relatively strong correlation (about .33) with `logprice`. Variables `origin_author`, `origin_cat` and `school_pntg` are correlated with each other and some of their imformation is already carried by `diff_origin`. Therefore, we decide to choose origin_author as it has the strongest r-squared. When looking at the sale of the paintings, one can observe that `winningbiddertype` has an r-squared of .21 when regressed on `logprice`. However, we can assume that it will be strongly correlated to `Interm` and therefore select `endbuyer` (r.sq = .14) instead. Variable `dealer` (what dealer sold the painting) also provides some additional information about the sale. It has a good r-squred of .14 and might be interesting when looking at interactions even though it might be correlated with `endbuyer` or `Interm`.  Variable `Interm` (presence of an intermediary) is also quite strongly correlated with the response (about .38). Despite its high correlation with other variables included in this list, we still believe that it provides important information. Finally, when investigating characteristics of paintings, variables `lrgfont` is the one with the highest correlation with the response (>.4) and despite its correlation with `interm`, we consider it as an important predictor. Variables `lands_sc`, `prevcoll`, `finished` are also considered important in predicting `logprice` with correlations between .15 and .25 and a low correlation with the other variables selected. 
   
   Our 10 variables:  
 `lands_sc`, `prevcoll`, `finished`, `lrgfont`, `origin_author`, `endbuyer`, `interm`, `Surface`, `year`, `diff_origin`
@@ -332,7 +350,7 @@ Discuss performance based on leader board results and suggested refinements. ---
 
 In part A of the project, we ran stepwise selection on the 10 variables we indentified as important in the EDA, along with 10 additional varibles (`dealer`, `Shape`, `material_Cat`, `lands_figs`, `peasant`, `engraved`, `portrait`, `still-life`, `discauth`, `artistliving`) and a few interactions (`log(Surface + 1):materialCat`, ` dealer:origin_author`, `dealer:Interm`, `endbuyer:Interm`, `dealer:endbuyer` and `finished:prevcoll`) that looked relevant in the data . The initial model included 77 coefficients, since many of our variables are categorical and were transformed into dummy variables in the regression. After stepwise selection with AIC as the selection criteria and two-directional search, we ended up with 36 coefficients model. We chose this model as our model for prediction.
 
-Looking back, we observe we had low bias and low training RMSE compared to other groups, but very high test RMSE. This suggests that we overfitted the model, even after running the stepwise model selection. To remedy this issue, we should have relied more on our EDA and limit the number of variables in our initial model to probably 10 to 13. In order to investigate relevant interaction, we could have ran a stepwise regression on these selected variables with all two way interactions and pick the ones that seemed the most relevant. We could then have improved the model using cross validation. An other possibility was to use a different criteria for model selection. On the same initial model, running stepwise selection with BIC instead of AIC results in a smaller model with only 24 coefficients which could have helped with the overfitting problem. Comparing the two options, BIC has a lower $R^2$ (0.6 compared to 0.614) and a higher residual se (1.19 compared to 1.17).
+Looking back, we first see that we could have done a better job in the EDA part by for example changing `year` to a factor variable or exploring variables such as `authorstandard` and `winningbidder`. We then observe that we had low bias and low training RMSE compared to other groups, but very high test RMSE. This suggests that we overfitted the model, even after running the stepwise model selection. To remedy this issue, we should have relied more on our EDA and limit the number of variables in our initial model to probably 10 to 13. In order to investigate relevant interaction, we could have ran a stepwise regression on these selected variables with all two way interactions and pick the ones that seemed the most relevant. We could then have improved the model using cross validation. An other possibility was to use a different criteria for model selection. On the same initial model, running stepwise selection with BIC instead of AIC results in a smaller model with only 24 coefficients which could have helped with the overfitting problem. Comparing the two options, BIC has a lower $R^2$ (0.6 compared to 0.614) and a higher residual se (1.19 compared to 1.17).
 
 
 ## **Development of Final Model**
@@ -349,9 +367,12 @@ Looking back, we observe we had low bias and low training RMSE compared to other
 
 * discussion of how prediction intervals obtained --->
 
-We choose to use Bayesian Model Averaging (BMA) to produce our final model for this task. The advantages of using BMA are that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty and includes a version of selection by shrinking unnecessary coefficients towards zero. 
 
-Since our first model overfitted the data, even after model selection, we feel it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. 
+From what we learned from the first part, we decide to pick a more restricted set of variables for our initial model. We include the 10 most important variables from our EDA and add n additional variables (enter variables here that we though were important). In order to investigate potential interactions, we run a stepwise regression with AIC as selection criteria on our selected variables with all two way interactions. From this stepwise model, we pick the interactions that seemed the most relevant. We use cross-validation by splitting randomly `paintings_train` into a train and test sets to train our model. 
+
+We choose to use Bayesian Model Averaging (BMA) to produce our final model for this task. The advantages of using BMA are that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty and includes a version of selection by shrinking unnecessary coefficients towards zero. Markov Chain Monte-Carlo used in this analysis also avoid to enumerate every model and focuses on the one with higher probabilities.
+
+Since our first model overfitted the data, even after model selection, we feel it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. We use Highest Probability Model as our estimator as, it performed better than BMA and BPM in cross-validation.
 
 ```{r subsets used}
 full_train <- paintings_train %>%
