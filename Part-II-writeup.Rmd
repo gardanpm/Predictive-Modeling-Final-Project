@@ -325,26 +325,27 @@ We chose to use BMA to produce our final model for this task. The advantages of 
 Since our first model overfitted the data, even after model selection, we felt it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. 
 
 ```{r subsets used}
-raw_train <- paintings_train %>%
+full_train <- paintings_train %>%
   # select manually the most important predictors
-  select(logprice, Surface, year, nfigures,
+  select(logprice, Surface, year,
          Interm, engraved, prevcoll, finished,
-         lrgfont, portrait, still_life,
+         lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
          dealer, origin_author, materialCat)
 
 set.seed(100)
 subset <- sample(1:nrow(raw_train), 1000)
-train <- raw_train[subset,] %>% impute_NA()
-test <- raw_train[-subset,] %>% impute_NA()
+train <- full_train[subset,] %>% impute_NA()
+test <- full_train[-subset,] %>% impute_NA()
 ```
 
 ```{r aic selection}
 full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
 ```
-<!-- Significant interactions: year:discauth* + year:artistliving* + Interm:discauth*** +
-Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat* -->
+Significant interactions from looking at aic_lm best model:
+year:discauth* + year:artistliving* + Interm:discauth*** +
+Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
 
 ```{r bma fitting}
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
@@ -414,17 +415,17 @@ plot(bma, which = 4)
 
 ### Model Evaluation
 
-### Model Testing
 
 ### Top 10 Paintings
 
 ```{r top ten}
 paintings_validation %>%
   impute_NA() %>%
-  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "BMA")$fit)) %>%
+  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "HPM")$fit)) %>%
   arrange(desc(predict_price)) %>%
   slice(1:10) %>%
-  select(predict_price, author, subject)
+  select(predict_price, author) %>%
+  kable(digits = 2, caption = "Top 10 valued paintings in validation set")
 ```
 
 
