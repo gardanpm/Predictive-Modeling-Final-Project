@@ -331,16 +331,25 @@ raw_train <- paintings_train %>%
          Interm, engraved, prevcoll, finished,
          lrgfont, portrait, still_life,
          discauth, artistliving,
-         dealer, origin_author)
+         dealer, origin_author, materialCat)
 
-set.seed(200)
+set.seed(100)
 subset <- sample(1:nrow(raw_train), 1000)
 train <- raw_train[subset,] %>% impute_NA()
 test <- raw_train[-subset,] %>% impute_NA()
 ```
 
+```{r aic selection}
+full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
+aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
+```
+Significant interactions: year:discauth* + year:artistliving* + Interm:discauth*** +
+Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
+
 ```{r bma fitting}
-bma <- bas.lm(logprice ~ . - Surface + log(Surface),
+bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
+                year:discauth + year:artistliving + Interm:discauth +
+                Interm:dealer + prevcoll:finished + discauth:dealer,
               data = train,
               prior = "g-prior",
               alpha = nrow(train),
@@ -350,8 +359,8 @@ bma <- bas.lm(logprice ~ . - Surface + log(Surface),
 
 ```{r bma prediction intervals}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
-predict_train <- predict(bma, newdata = train, estimator = "BMA", se.fit = TRUE)
-predict_test <- predict(bma, newdata = test, estimator = "BMA", se.fit = TRUE)
+predict_train <- predict(bma, newdata = train, estimator = "HPM", se.fit = TRUE)
+predict_test <- predict(bma, newdata = test, estimator = "HPM", se.fit = TRUE)
 # Get prediction intervals into a dataframe like this
 pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
 pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
