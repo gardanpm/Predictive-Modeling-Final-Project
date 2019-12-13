@@ -134,14 +134,22 @@ preprocess <- function(df, rm_dup = TRUE) {
     summarize(logprice = mean(logprice)) %>% 
     arrange(-logprice) %>% 
     ungroup %>% 
-    mutate(quartiles_winningBidder = ntile(logprice, n=4))
+    mutate(row = 1:n(),
+           quartiles_winningBidder = ntile(logprice, n=4),
+           highest_winningBidder = row<=10,
+           lowest_winningBidder = row >= n() - 10) %>% 
+    select(-row)
   
   quartiles_authors <- df %>% 
     group_by(authorstandard) %>% 
     summarize(logprice = mean(logprice)) %>% 
     arrange(-logprice) %>% 
     ungroup %>% 
-    mutate(quartiles_authors = ntile(logprice, n=4))
+    mutate(row = 1:n(),
+           quartiles_authors = ntile(logprice, n=4),
+           highest_authors = row<=10, 
+           lowest_authors = row >= n() - 10) %>% 
+    select(-row)
   
   df <- df %>% 
     mutate(year = as.factor(year)) %>% 
