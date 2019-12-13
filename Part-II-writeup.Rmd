@@ -53,9 +53,9 @@ In the second phase of the analysis, we will revisit the linear model and assess
 # Data pre-processing
 
 # Organize the variables into continuous/binary/multilevel categorical
-quant_vars <- names(paintings_train)[c(3,5,23:27,29,33)]
+quant_vars <- names(paintings_train)[c(3,23:27,29,33)]
 bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
-cat_vars <- names(paintings_train)[c(4,6:8,19,20,22,28,30:32)]
+cat_vars <- names(paintings_train)[c(4,5,6:8,19,20,22,28,30:32)]
 # The response and useless variables are not organized here
 
 # Function to replace NA values
@@ -110,19 +110,57 @@ preprocess <- function(df, rm_dup = TRUE) {
   }
   
   # Transform the categorical variables to factors
-  for(i in c(bin_vars, cat_vars)) {
+  for(i in bin_vars) {
+    if (!(i %in% names(df))) next
     df[,i] <- as.factor(df[,i])
   }
   
-  df$position <- ifelse(df$position >= 0 & df$position <= 1,
-                        df$position, NA)
+  if ("position" %in% names(df)) {
+    df$position <- ifelse(df$position >= 0 & df$position <= 1,
+                          df$position, NA)
+  }
   # Can only have positive surface - need to adjust, since we take the log
-  df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
-  df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
-
+  if ("Surface" %in% names(df)) {
+    df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
+  }
+  if ("Shape" %in% names(df)) {
+    df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
+  }
+  
+  
+  # part 2 additions
+  quartiles_winningBidder <- df %>% 
+    group_by(winningbidder) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(row = 1:n(),
+           quartiles_winningBidder = ntile(logprice, n=4),
+           highest_winningBidder = row<=10,
+           lowest_winningBidder = row >= n() - 10) %>% 
+    select(winningbidder, quartiles_winningBidder, lowest_winningBidder, highest_winningBidder)
+  
+  quartiles_authors <- df %>% 
+    group_by(authorstandard) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(row = 1:n(),
+           quartiles_authors = ntile(logprice, n=4),
+           highest_authors = row<=10, 
+           lowest_authors = row >= n() - 10) %>% 
+    select(authorstandard, quartiles_authors, lowest_authors, highest_authors)
+  
+  df <- df %>% 
+    mutate(year = as.factor(year)) %>% 
+    left_join(quartiles_winningBidder) %>% 
+    left_join(quartiles_authors)
+  
   return (df)
 }
 
+# Save the unprocessed training set for later
+raw_paintings_train <- paintings_train
 paintings_train <- preprocess(paintings_train)
 paintings_test <- preprocess(paintings_test, rm_dup = F)
 paintings_validation <- preprocess(paintings_validation, rm_dup = F)
@@ -316,18 +354,38 @@ We choose to use Bayesian Model Averaging (BMA) to produce our final model for t
 Since our first model overfitted the data, even after model selection, we feel it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. 
 
 ```{r subsets used}
-train <- paintings_train %>%
+full_train <- paintings_train %>%
   # select manually the most important predictors
   select(logprice, Surface, year,
          Interm, engraved, prevcoll, finished,
-         lrgfont, lands_sc, peasant, portrait, still_life,
-         discauth, lands_figs, artistliving,
-         dealer, materialCat, endbuyer, Shape, origin_author) %>%
-  impute_NA()
+         lrgfont, lands_sc, portrait, still_life,
+         discauth, artistliving,
+         dealer, origin_author, materialCat, 
+         #additional
+         quartiles_authors, quartiles_winningBidder,
+         highest_winningBidder, highest_authors,
+         lowest_winningBidder, lowest_authors)
+
+set.seed(100)
+subset <- sample(1:nrow(full_train), 1000)
+train <- full_train[subset,] %>% impute_NA()
+test <- full_train[-subset,] %>% impute_NA()
 ```
 
+```{r aic selection}
+full_lm <- lm(logprice ~ (. - Surface + log(Surface) -year - lowest_winningBidder - lowest_authors
+                          - highest_winningBidder - highest_authors)^2 + year + lowest_winningBidder + lowest_authors
+                          + highest_winningBidder + highest_authors, data = train)
+aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
+```
+Significant interactions from looking at aic_lm best model:
+year:discauth* + year:artistliving* + Interm:discauth*** +
+Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
+
 ```{r bma fitting}
-bma <- bas.lm(logprice ~ . - Surface + log(Surface) +,
+bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
+                year:discauth + year:artistliving + Interm:discauth +
+                Interm:dealer + prevcoll:finished + discauth:dealer +quartiles_authors:log(Surface),
               data = train,
               prior = "g-prior",
               alpha = nrow(train),
@@ -335,43 +393,47 @@ bma <- bas.lm(logprice ~ . - Surface + log(Surface) +,
               method = "MCMC")
 ```
 
-```{r bma diagnostics}
-diagnostics(bma2)
-```
-
-```{r bma coefs}
-kable(summary(bma2), digits = 3)
-```
-
-
-```{r bma image}
-image(bma2, cex.axis = 0.45) 
-```
-
-
-```{r bma plots}
-plot(bma2, which = 4)
-```
-
 ```{r bma prediction intervals}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
-predict_train <- predict(bma2, estimator = "BMA", se.fit = TRUE)
+predict_train <- predict(bma, newdata = train, estimator = "HPM", se.fit = TRUE)
+predict_test <- predict(bma, newdata = test, estimator = "HPM", se.fit = TRUE)
 # Get prediction intervals into a dataframe like this
 pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
-pi_train
+pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
 ```
 
-```{r bma analysis}
+```{r bma cross validation analysis}
 rmse <- function(obs, pred) {
   sqrt(sum((obs - pred)^2)/length(obs))
 }
 
 # Compare BMA RMSE to a baseline
-null_model <- lm(logprice ~ 1, data = train)
+rmse(exp(train$logprice), exp(predict(lm(logprice ~ 1, data = train))))
+rmse(exp(test$logprice), exp(predict(lm(logprice ~ 1, data = test))))
 
-rmse(exp(train$logprice), exp(predict(null_model)))
-#rmse(exp(train$logprice), exp(predict(model.sel)))
-rmse(exp(train$logprice), exp(pi_train$pred))
+paste("Train RMSE:", rmse(exp(train$logprice), exp(pi_train$pred)))
+paste("Train Coverage:", mean(exp(train$logprice) > exp(pi_train$X2.5.) &
+                              exp(train$logprice) < exp(pi_train$X97.5.) ))
+paste("Test RMSE:", rmse(exp(test$logprice), exp(pi_test$pred)))
+paste("Test Coverage:", mean(exp(test$logprice) > exp(pi_test$X2.5.) &
+                             exp(test$logprice) < exp(pi_test$X97.5.) ))
+```
+
+
+```{r bma diagnostics}
+diagnostics(bma)
+```
+
+```{r bma coefs}
+kable(summary(bma), digits = 3)
+```
+
+```{r bma image}
+image(bma, cex.axis = 0.45) 
+```
+
+```{r bma plots}
+plot(bma, which = 4)
 ```
 
 
@@ -386,6 +448,21 @@ rmse(exp(train$logprice), exp(pi_train$pred))
 
 * Model result: must include a selection and discussion of the top 10 valued paintings in the validation data. --->
 
+### Model Evaluation
+
+
+### Top 10 Paintings
+
+```{r top ten}
+paintings_validation %>%
+  impute_NA() %>%
+  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "HPM")$fit)) %>%
+  arrange(desc(predict_price)) %>%
+  slice(1:10) %>%
+  select(predict_price, author) %>%
+  kable(digits = 2, caption = "Top 10 valued paintings in validation set")
+```
+
 
 ## **Conclusion**
 
@@ -398,7 +475,7 @@ rmse(exp(train$logprice), exp(pi_train$pred))
 
 ```{r predict train, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_train %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_train %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_train),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -409,7 +486,7 @@ save(predictions, file="predict-train.Rdata")
 
 ```{r predict test, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_test %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_test %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -422,7 +499,7 @@ Create predictions for the validation data from your final model using the dataf
 
 ```{r prediction validation, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(bma2, newdata = paintings_validation %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_validation %>% impute_NA(), 
               estimator = "BMA", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
