@@ -110,19 +110,28 @@ preprocess <- function(df, rm_dup = TRUE) {
   }
   
   # Transform the categorical variables to factors
-  for(i in c(bin_vars, cat_vars)) {
+  for(i in bin_vars) {
+    if (!(i %in% names(df))) next
     df[,i] <- as.factor(df[,i])
   }
   
-  df$position <- ifelse(df$position >= 0 & df$position <= 1,
-                        df$position, NA)
+  if ("position" %in% names(df)) {
+    df$position <- ifelse(df$position >= 0 & df$position <= 1,
+                          df$position, NA)
+  }
   # Can only have positive surface - need to adjust, since we take the log
-  df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
-  df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
+  if ("Surface" %in% names(df)) {
+    df$Surface <- ifelse(df$Surface <= 0, NA, df$Surface)
+  }
+  if ("Shape" %in% names(df)) {
+    df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
+  }
 
   return (df)
 }
 
+# Save the unprocessed training set for later
+raw_paintings_train <- paintings_train
 paintings_train <- preprocess(paintings_train)
 paintings_test <- preprocess(paintings_test, rm_dup = F)
 paintings_validation <- preprocess(paintings_validation, rm_dup = F)
@@ -316,18 +325,22 @@ We chose to use BMA to produce our final model for this task. The advantages of 
 Since our first model overfitted the data, even after model selection, we felt it is better to go with a more complex technique that will reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. 
 
 ```{r subsets used}
-train <- paintings_train %>%
+raw_train <- paintings_train %>%
   # select manually the most important predictors
-  select(logprice, Surface, year,
+  select(logprice, Surface, year, nfigures,
          Interm, engraved, prevcoll, finished,
-         lrgfont, lands_sc, peasant, portrait, still_life,
-         discauth, lands_figs, artistliving,
-         dealer, materialCat, endbuyer, Shape, origin_author) %>%
-  impute_NA()
+         lrgfont, portrait, still_life,
+         discauth, artistliving,
+         dealer, origin_author)
+
+set.seed(200)
+subset <- sample(1:nrow(raw_train), 1000)
+train <- raw_train[subset,] %>% impute_NA()
+test <- raw_train[-subset,] %>% impute_NA()
 ```
 
 ```{r bma fitting}
-bma <- bas.lm(logprice ~ . - Surface + log(Surface) +,
+bma <- bas.lm(logprice ~ . - Surface + log(Surface),
               data = train,
               prior = "g-prior",
               alpha = nrow(train),
@@ -335,43 +348,47 @@ bma <- bas.lm(logprice ~ . - Surface + log(Surface) +,
               method = "MCMC")
 ```
 
-```{r bma diagnostics}
-diagnostics(bma2)
-```
-
-```{r bma coefs}
-kable(summary(bma2), digits = 3)
-```
-
-
-```{r bma image}
-image(bma2, cex.axis = 0.45) 
-```
-
-
-```{r bma plots}
-plot(bma2, which = 4)
-```
-
 ```{r bma prediction intervals}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
-predict_train <- predict(bma2, estimator = "BMA", se.fit = TRUE)
+predict_train <- predict(bma, newdata = train, estimator = "BMA", se.fit = TRUE)
+predict_test <- predict(bma, newdata = test, estimator = "BMA", se.fit = TRUE)
 # Get prediction intervals into a dataframe like this
 pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
-pi_train
+pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
 ```
 
-```{r bma analysis}
+```{r bma cross validation analysis}
 rmse <- function(obs, pred) {
   sqrt(sum((obs - pred)^2)/length(obs))
 }
 
 # Compare BMA RMSE to a baseline
-null_model <- lm(logprice ~ 1, data = train)
+rmse(exp(train$logprice), exp(predict(lm(logprice ~ 1, data = train))))
+rmse(exp(test$logprice), exp(predict(lm(logprice ~ 1, data = test))))
 
-rmse(exp(train$logprice), exp(predict(null_model)))
-#rmse(exp(train$logprice), exp(predict(model.sel)))
-rmse(exp(train$logprice), exp(pi_train$pred))
+paste("Train RMSE:", rmse(exp(train$logprice), exp(pi_train$pred)))
+paste("Train Coverage:", mean(exp(train$logprice) > exp(pi_train$X2.5.) &
+                              exp(train$logprice) < exp(pi_train$X97.5.) ))
+paste("Test RMSE:", rmse(exp(test$logprice), exp(pi_test$pred)))
+paste("Test Coverage:", mean(exp(test$logprice) > exp(pi_test$X2.5.) &
+                             exp(test$logprice) < exp(pi_test$X97.5.) ))
+```
+
+
+```{r bma diagnostics}
+diagnostics(bma)
+```
+
+```{r bma coefs}
+kable(summary(bma), digits = 3)
+```
+
+```{r bma image}
+image(bma, cex.axis = 0.45) 
+```
+
+```{r bma plots}
+plot(bma, which = 4)
 ```
 
 
