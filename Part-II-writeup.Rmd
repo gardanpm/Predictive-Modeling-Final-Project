@@ -361,6 +361,7 @@ full_train <- paintings_train %>%
          lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
          dealer, origin_author, materialCat, 
+         #additional
          quartiles_authors, quartiles_winningBidder,
          highest_winningBidder, highest_authors,
          lowest_winningBidder, lowest_authors)
@@ -372,7 +373,9 @@ test <- full_train[-subset,] %>% impute_NA()
 ```
 
 ```{r aic selection}
-full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
+full_lm <- lm(logprice ~ (. - Surface + log(Surface) -year - lowest_winningBidder - lowest_authors
+                          - highest_winningBidder - highest_authors)^2 + year + lowest_winningBidder + lowest_authors
+                          + highest_winningBidder + highest_authors, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
 ```
 Significant interactions from looking at aic_lm best model:
@@ -382,7 +385,7 @@ Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** +
 ```{r bma fitting}
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
                 year:discauth + year:artistliving + Interm:discauth +
-                Interm:dealer + prevcoll:finished + discauth:dealer,
+                Interm:dealer + prevcoll:finished + discauth:dealer +quartiles_authors:log(Surface),
               data = train,
               prior = "g-prior",
               alpha = nrow(train),
