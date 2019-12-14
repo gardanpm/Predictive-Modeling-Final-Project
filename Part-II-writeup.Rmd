@@ -53,9 +53,9 @@ In the second phase of the analysis, we will revisit the linear model and assess
 # Data pre-processing
 
 # Organize the variables into continuous/binary/multilevel categorical
-quant_vars <- names(paintings_train)[c(5,3,23:27,29,33)] # year is #5
+quant_vars <- names(paintings_train)[c(3,23:27,29,33)]
 bin_vars <- names(paintings_train)[c(9,15,21,34:59)]
-cat_vars <- names(paintings_train)[c(4,6:8,19,20,22,28,30:32)]
+cat_vars <- names(paintings_train)[c(4,5,6:8,19,20,22,28,30:32)]
 # The response and useless variables are not organized here
 
 # Function to replace NA values
@@ -126,8 +126,10 @@ preprocess <- function(df, rm_dup = TRUE) {
   if ("Shape" %in% names(df)) {
     df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
   }
-  
-  
+  if ("year" %in% names(df)) {
+    df$year <- as.character(df$year)
+  }
+
   return (df)
 }
 
