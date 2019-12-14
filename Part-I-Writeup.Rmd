@@ -199,6 +199,11 @@ In order to have a passing wercker badge, your file for predictions needs to be 
 
 Save predictions and intervals.  
 ```{r predict-model-final, echo=FALSE, include=FALSE}
+# Recode to pass new levels octogon in new test set
+for(i in 1:nrow(paintings_test)){
+  if(paintings_test$Shape[i] %in% "octogon"){paintings_test$Shape[i] = "octagon"}
+  else{paintings_test$Shape[i] = paintings_test$Shape[i]}
+}
 # change model1 or update as needed
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
