@@ -351,15 +351,6 @@ Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** +
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
                 year:discauth + year:artistliving + Interm:discauth +
                 Interm:dealer + prevcoll:finished + discauth:dealer,
-              data = train,
-              prior = "g-prior",
-              alpha = nrow(train),
-              modelprior = uniform(),
-              method = "MCMC")
-
-full_bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
-                year:discauth + year:artistliving + Interm:discauth +
-                Interm:dealer + prevcoll:finished + discauth:dealer,
               data = full_train %>% impute_NA(),
               prior = "g-prior",
               alpha = nrow(train),
@@ -521,7 +512,8 @@ paintings_validation %>%
 
 ```{r predict train, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(full_bma, newdata = paintings_train %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = raw_paintings_train %>%
+                        preprocess(rm_dup = F) %>% impute_NA(), 
               estimator = "HPM", se.fit = T), parm = "pred")[1:nrow(paintings_train),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -532,7 +524,7 @@ save(predictions, file="predict-train.Rdata")
 
 ```{r predict test, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(full_bma, newdata = paintings_test %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_test %>% impute_NA(), 
               estimator = "HPM", se.fit = T), parm = "pred")[1:nrow(paintings_test),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
@@ -545,7 +537,7 @@ Create predictions for the validation data from your final model using the dataf
 
 ```{r prediction validation, echo=FALSE, eval=FALSE}
 predictions = as.data.frame(
-  exp(confint(predict(full_bma, newdata = paintings_validation %>% impute_NA(), 
+  exp(confint(predict(bma, newdata = paintings_validation %>% impute_NA(), 
               estimator = "HPM", se.fit = T), parm = "pred")[1:nrow(paintings_validation),])
 ) %>%
   select(fit = 3, lwr = 1, upr = 2)
