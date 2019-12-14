@@ -413,35 +413,33 @@ full_train <- paintings_train %>%
 ```
 
 
-```{r aic selection, eval = F}
+```{r aic and cv, eval = F}
+# aic
 full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
-```
-Significant interactions from looking at aic_lm best model:
-year:discauth* + year:artistliving* + Interm:discauth*** +
-Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
 
-```{r bma fitting}
+# cv
+set.seed(100)
+subset <- sample(1:nrow(full_train), 1000)
+train <- full_train[subset,] %>% impute_NA()
+test <- full_train[-subset,] %>% impute_NA()
+
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
-                year:discauth + year:artistliving + Interm:discauth +
+                + Interm:discauth +
                 Interm:dealer + prevcoll:finished + discauth:dealer,
-              data = full_train %>% impute_NA(),
+              data = train %>% impute_NA(),
               prior = "g-prior",
-              alpha = nrow(full_train),
+              alpha = nrow(train),
               modelprior = uniform(),
               method = "MCMC")
-```
 
-```{r bma prediction intervals, eval = F}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
 predict_train <- predict(bma, newdata = train, estimator = "HPM", se.fit = TRUE)
 predict_test <- predict(bma, newdata = test, estimator = "HPM", se.fit = TRUE)
 # Get prediction intervals into a dataframe like this
 pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
 pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
-```
 
-```{r bma cross validation analysis, eval = F}
 rmse <- function(obs, pred) {
   sqrt(sum((obs - pred)^2)/length(obs))
 }
@@ -456,6 +454,21 @@ paste("Train Coverage:", mean(exp(train$logprice) > exp(pi_train$X2.5.) &
 paste("Test RMSE:", rmse(exp(test$logprice), exp(pi_test$pred)))
 paste("Test Coverage:", mean(exp(test$logprice) > exp(pi_test$X2.5.) &
                              exp(test$logprice) < exp(pi_test$X97.5.) ))
+```
+
+Significant interactions from looking at aic_lm best model:
+year:discauth* + year:artistliving* + Interm:discauth*** +
+Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** + still_life:materialCat*
+
+```{r bma fitting}
+bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
+                year:discauth + year:artistliving + Interm:discauth +
+                Interm:dealer + prevcoll:finished + discauth:dealer,
+              data = full_train %>% impute_NA(),
+              prior = "g-prior",
+              alpha = nrow(full_train),
+              modelprior = uniform(),
+              method = "MCMC")
 ```
 
 
