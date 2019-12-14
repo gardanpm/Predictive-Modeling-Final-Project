@@ -313,7 +313,7 @@ par(fig = c(0.1,.35,.3,.5), new = TRUE)
 boxplot(logprice~quartiles_winningBidder, data = paintings_train,
   xlab='winningbidder', ylab='logprice', main = paste(
     "winningbidder R^2 = ", r.2[7], sep=""))
-par(fig = c(0.4,.7,.3,.5), new = TRUE)
+par(fig = c(0.4,.65,.3,.5), new = TRUE)
 boxplot(logprice~quartiles_authors, data = paintings_train, 
   xlab='authorstandard', ylab='logprice', main = paste(
     "authorstandard R^2 = ", r.2[8], sep=""))
@@ -388,7 +388,8 @@ From what we learned from the first part, we decide to pick a more restricted se
 
 From this initial model, we choose to use BMA to produce our final model for this task. The advantages of using BMA are that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty and includes a version of selection by shrinking unnecessary coefficients towards zero. Markov Chain Monte-Carlo used in this analysis also avoid to enumerate every model and focuses on the one with higher probabilities.
 
-Since we want to restrict the model to only the most important variables, we feel it is better to go with a more complex technique that will perform another kind of variable selection and reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. We use Highest Probability Model as our estimator as, it performed better than BMA and BPM in cross-validation.
+Since we want to restrict the model to only the most important variables, we feel it is better to go with a more complex technique that will perform another kind of variable selection and reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. We use Highest Probability Model as our estimator as, it performed better than BMA and BPM in cross-validation.  
+  
 
 ```{r subsets used, include=FALSE}
 full_train <- paintings_train %>%
