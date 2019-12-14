@@ -146,7 +146,7 @@ paintings_validation <- preprocess(paintings_validation, rm_dup = F)
     arrange(-logprice) %>% 
     ungroup %>% 
     mutate(row = 1:n(),
-           quartiles_winningBidder = ntile(logprice, n=4),
+           quartiles_winningBidder = as.factor(ntile(logprice, n=4)),
            highest_winningBidder = row<=10,
            lowest_winningBidder = row >= n() - 10) %>% 
     select(winningbidder, quartiles_winningBidder, lowest_winningBidder, highest_winningBidder)
@@ -157,7 +157,7 @@ paintings_validation <- preprocess(paintings_validation, rm_dup = F)
     arrange(-logprice) %>% 
     ungroup %>% 
     mutate(row = 1:n(),
-           quartiles_authors = ntile(logprice, n=4),
+           quartiles_authors = as.factor(ntile(logprice, n=4)),
            highest_authors = row<=10, 
            lowest_authors = row >= n() - 10) %>% 
     select(authorstandard, quartiles_authors, lowest_authors, highest_authors)
@@ -582,6 +582,36 @@ paintings_validation %>%
 
 ## **Final Predictions**
 
+```{r full train}
+full_train <- paintings_train %>%
+  # select manually the most important predictors
+  select(logprice, Surface, year, nfigures, relig,
+         portrait, still_life, history, allegory, 
+         pastorale, engraved, prevcoll, finished,
+         lrgfont, lands_sc, portrait, still_life,
+         discauth, artistliving, origin_cat,
+         origin_author,
+         diff_origin,engraved, nfigures,
+         # endbuyer, materialCat,Interm
+         #additional
+         
+         quartiles_authors, quartiles_winningBidder,
+         highest_winningBidder, highest_authors,
+         lowest_winningBidder, lowest_authors,
+         # sale dimensions
+         #lot, 
+         position, dealer
+         )
+
+
+bma <- bas.lm(logprice ~ . - Surface + log(Surface) ,
+              data = full_train,
+              prior = "g-prior",
+              alpha = nrow(train),
+              modelprior = uniform(),
+              method = "MCMC", MCMC.iterations = 500000)
+```
+
 <!-- TRAINING SET -->
 
 ```{r predict train, echo=FALSE, eval=FALSE}
@@ -616,5 +646,4 @@ predictions = as.data.frame(
   select(fit = 3, lwr = 1, upr = 2)
 save(predictions, file="predict-validation.Rdata")
 ```
-
 
