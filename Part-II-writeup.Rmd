@@ -126,6 +126,9 @@ preprocess <- function(df, rm_dup = TRUE) {
   if ("Shape" %in% names(df)) {
     df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
   }
+  if ("year" %in% names(df)) {
+    df$year <- as.character(df$year)
+  }
 
   return (df)
 }
