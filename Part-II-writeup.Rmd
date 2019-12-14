@@ -452,8 +452,11 @@ paste("Test Coverage:", mean(exp(test$logprice) > exp(pi_test$X2.5.) &
 
 
 ```{r bma diagnostics}
+par(mfrow = c(2,1))
 diagnostics(bma)
 ```
+
+The diagnostics plots for the BMA show that the models converged. The dots along the diagonal show that the estimates of the marginal inclusion probabilities from the re-normalized posterior odds agree with the estimates based on Monte Carlo frequencies. This means that enough MCMC samples were obtained.
 
 ```{r bma coefs}
 kable(summary(bma), digits = 3)
@@ -463,10 +466,13 @@ kable(summary(bma), digits = 3)
 image(bma, cex.axis = 0.45) 
 ```
 
+Both the table and the model space show that the BMA procedure produced clear decisions on what should and what shouldn't be in the model. Out of our candidate variables, several were dropped from all top models. Others got probability of one to be kept in the model.
+
 ```{r bma plots}
 plot(bma, which = 4)
 ```
 
+The Inclusion Probabilities graph is another visualization that helps us understand what the BMA procedure considers should and what shouldn't be kept in the final model. 
 
 ## **Assessment of Final Model**
 
