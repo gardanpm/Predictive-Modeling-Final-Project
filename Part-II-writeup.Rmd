@@ -412,8 +412,8 @@ full_train <- paintings_train %>%
          dealer, origin_author, materialCat)
 ```
 
-**I ran this to find significant interactions (some listed below)**
-```{r aic selection}
+
+```{r aic selection, eval = F}
 full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
 ```
