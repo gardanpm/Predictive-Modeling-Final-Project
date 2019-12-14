@@ -387,8 +387,16 @@ Looking back, we first see that we could have done a better job in the EDA part 
 
 * discussion of how prediction intervals obtained --->
 
-
 From what we learned from the first part, we decide to pick a more restricted set of variables for our initial model. We include the 10 most important variables from our EDA and add n additional variables (enter variables here that we though were important). In order to investigate potential interactions, we run a stepwise regression with AIC as selection criteria on our selected variables with all two way interactions. From this stepwise model, we pick the interactions that seemed the most relevant. To help us select these variables and interactions and compare different potential final model, we use k-fold cross-validation with k = 5. 
+
+An important change from the initial model was to treat year as a factor instead of a numeric variable. We decided to do after observing the nonlinear variation in prices across years.
+
+```{r}
+boxplot(logprice~year, data = paintings_train, 
+  xlab='Year', ylab='logprice', main = "Price variation by Year")
+```
+
+
 
 We choose to use BMA to produce our final model for this task. The advantages of using BMA are that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty and includes a version of selection by shrinking unnecessary coefficients towards zero. Markov Chain Monte-Carlo used in this analysis also avoid to enumerate every model and focuses on the one with higher probabilities.
 
