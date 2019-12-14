@@ -457,7 +457,21 @@ plot(bma, which = 4)
 
 ### Model Evaluation
 
+```{r summaries}
+coefs <- coef(bma, estimator = "BMA", n.models = 1)
+df <- data.frame("post mean" = coefs$postmean, "post sd" = coefs$postsd, "post P(B != 0)" = coefs$probne0)
+rownames(df) <- coefs$namesx
+kable(df, digits = 4, caption = "Posterior summaries of coefficients in final model")
+
+summ <- summary(bma)
+kable(summ[(nrow(summ)-4):nrow(summ), -1], digits = 4, caption = "Performance of top 5 BMA models")
+```
+
+From the posterior summaries above, we can see that most of the included coefficients have high marginal inclusion probabilities: only `materialCat` is below 0.5.  Contrarily, the interaction terms, which were chosen based on an AIC stepwise selection, are mostly not significant: only `prevcoll:finished` is above 0.5.  Based on the summary table, however, BMA was mostly able to find well-fitted models.  The best model had an $R^2$ of 0.6051 and 23 coefficients, similar to our original linear regression model from Part I.  Since for the sake of efficiency, we used MCMC to search the model space, there is no guarantee that we found the absolute best model, but of those searched, this "best" model has by far the highest posterior probability (0.2173).
+
 ### Model Testing
+
+To verify whether our BMA performs well both in-sample and out-of-sample, we used 5-fold cross-validation on the training set to compute the average RMSE and coverage across all folds.  Below are the results for the BMA, BPM, and HPM estimators:
 
 ```{r subset and split}
 ## SUBSET HOW YOU WANT HERE
@@ -476,7 +490,7 @@ k <- 5
 folds <- split(shuffled_rows, sort(shuffled_rows %% k)) 
 ```
 
-```{r bma cv}
+```{r bma cv, cache = T}
 ## DO YOUR MODELING HERE
 bma_cv <- as.list(rep(NA, k))
 for (i in 1:k) {
@@ -539,19 +553,24 @@ kable(cv(full_train, folds, "HPM"), digits = 3, caption = "k-fold CV for final m
 kable(cv(full_train, folds, "BPM"), digits = 3, caption = "k-fold CV for final model (BPM estimator)")
 ```
 
+It can seen that all 3 estimators give similar results.  This should be expected, as one model has a very high posterior probability, making BMA close to selection of the highest-posterior model.  Based on these results, we decided to just use the HPM to make predictions, as it seems to perform the best of the three estimators on out-of-sample observations and as mentioned, it is naturally very close to the BMA estimates.
+
+The highest-posterior model performs consistently well across all folds in both RMSE and coverage.  It always does better than the null model and with the exception of the final fold, performs as well or better on the test set than on the training set.  Of the different BMA models we fitted, we found that this final model had relatively low variance in test RMSE and on average, had the lowest test RMSE.  Other models (e.g., one which used the same coefficients but treated `year` as a factor) performed better on the test set leaderboard (1232 RMSE instead of the current 1282 RMSE) but due to high variance, was much worse in cross-validation.  Since we do not know how our performance on the validation set, we decided to choose the more consistent and stable model, despite the slightly lower score on the test set.
 
 ### Top 10 Paintings
 
 ```{r top ten}
 paintings_validation %>%
   impute_NA() %>%
-  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "BMA")$fit)) %>%
+  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "HPM")$fit)) %>%
   arrange(desc(predict_price)) %>%
   slice(1:10) %>%
   select(predict_price, author, subject) %>%
   mutate_at(c("author", "subject"), function(x) { str_replace_all(x, "[^\\w\\s\\d]", "") }) %>%
   kable(digits = 2, caption = "Top 10 valued paintings in validation set")
 ```
+
+Our model selects the above works as the top 10 most expensive paintings in the validation set.  The second and third artists on this list are Rembrandt and Peter Paul Rubens, respectively, perhaps the two most well-regarded artists of the 17th century Dutch Golden Age.  In particular, the second painting is "The Night Watch," Rembrandt's most famous painting and one of the most famous of that entire century.  Jardin is less well-known nowadays, but since these paintings were bought in the late 18th century, it is possible his reputation was better at the time.  Regardless, these results seem to make sense, suggesting that our model is giving reasonable results on out-of-sample predictions (at least at the high end of the price spectrum).
 
 
 ## **Conclusion**
