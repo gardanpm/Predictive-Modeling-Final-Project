@@ -136,9 +136,9 @@ raw_paintings_train <- paintings_train
 paintings_train <- preprocess(paintings_train)
 paintings_test <- preprocess(paintings_test, rm_dup = F)
 paintings_validation <- preprocess(paintings_validation, rm_dup = F)
+```
 
-
-
+```{r part 2 extra preprocessing, eval = F}
 # part 2 additions
   quartiles_winningBidder <- paintings_train %>% 
     group_by(winningbidder) %>% 
@@ -164,7 +164,7 @@ paintings_validation <- preprocess(paintings_validation, rm_dup = F)
   
 add_quartiles <- function(df, quartiles_authors, quartiles_winningBidder) {
   df <- df %>% 
-    mutate(year = as.factor(year)) %>% 
+    #mutate(year = as.factor(year)) %>% 
     left_join(quartiles_winningBidder) %>% 
     left_join(quartiles_authors) %>% 
     mutate(lowest_authors = replace_na(lowest_authors, F),
@@ -179,6 +179,9 @@ add_quartiles <- function(df, quartiles_authors, quartiles_winningBidder) {
 paintings_train <- add_quartiles(paintings_train, quartiles_authors, quartiles_winningBidder)
 paintings_test <- add_quartiles(paintings_test, quartiles_authors, quartiles_winningBidder)
 paintings_validation <- add_quartiles(paintings_validation, quartiles_authors, quartiles_winningBidder)
+
+paintings_test %>%
+  select(author, quartiles_authors, winningbidder, quartiles_winningBidder)
 ```
 
 
@@ -396,22 +399,12 @@ full_train <- paintings_train %>%
          Interm, engraved, prevcoll, finished,
          lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
-         dealer, origin_author, materialCat, 
-         #additional
-         quartiles_authors, quartiles_winningBidder,
-         highest_winningBidder, highest_authors,
-         lowest_winningBidder, lowest_authors)
-
-set.seed(100)
-subset <- sample(1:nrow(full_train), 1000)
-train <- full_train[subset,] %>% impute_NA()
-test <- full_train[-subset,] %>% impute_NA()
+         dealer, origin_author, materialCat)
 ```
 
+**I ran this to find significant interactions (some listed below)**
 ```{r aic selection}
-full_lm <- lm(logprice ~ (. - Surface + log(Surface) -year - lowest_winningBidder - lowest_authors
-                          - highest_winningBidder - highest_authors)^2 + year + lowest_winningBidder + lowest_authors
-                          + highest_winningBidder + highest_authors, data = train)
+full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
 ```
 Significant interactions from looking at aic_lm best model:
@@ -421,15 +414,15 @@ Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** +
 ```{r bma fitting}
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
                 year:discauth + year:artistliving + Interm:discauth +
-                Interm:dealer + prevcoll:finished + discauth:dealer +quartiles_authors:log(Surface),
-              data = train,
+                Interm:dealer + prevcoll:finished + discauth:dealer,
+              data = full_train %>% impute_NA(),
               prior = "g-prior",
               alpha = nrow(train),
               modelprior = uniform(),
               method = "MCMC")
 ```
 
-```{r bma prediction intervals}
+```{r bma prediction intervals, eval = F}
 # From the BAS documentation - https://cran.r-project.org/web/packages/BAS/vignettes/BAS-vignette.html
 predict_train <- predict(bma, newdata = train, estimator = "HPM", se.fit = TRUE)
 predict_test <- predict(bma, newdata = test, estimator = "HPM", se.fit = TRUE)
@@ -438,7 +431,7 @@ pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
 pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
 ```
 
-```{r bma cross validation analysis}
+```{r bma cross validation analysis, eval = F}
 rmse <- function(obs, pred) {
   sqrt(sum((obs - pred)^2)/length(obs))
 }
