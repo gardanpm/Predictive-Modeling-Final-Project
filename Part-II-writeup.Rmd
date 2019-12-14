@@ -576,6 +576,11 @@ Our model selects the above works as the top 10 most expensive paintings in the 
 
 <!--- 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time. --->   
 
+It seems like the factors that drove painting prices in 18th century Paris are mostly related to the sale and the dealer, the attributes of the painter and the year the sale took place. Only a few elements that relate to the actual content of the painting remained in our final model. The circumstances of the sale, therefore, have a higher prediction power than the subject that shows up in the painting. This outcome is not very surprising, and one would postulate that this is not a feature unique to pre-industrial France, but a persisting feature of the art world to this day.
+
+Our modelling efforts included multiple trial and error on variable selection and modelling technique. We learned from this experiment that variables that seem to perform very well in the training data can result in overfitting the model when applied to out-of-sample data. For example, we found out that the year variable performs well in the training data when it is viewed as a categorical variable. But when applied to the test data, it seemed to overfit. When we included it as a numeric value (therefore considering a linear relationship with log price) the out-of-sample results got much better results. In addition, once the basic model is decided, using more advanced techniques such as BMA does not necessarily result in better predictions. 
+
+If we had more time, we would consider other modelling techniques such as BART, and also experiment more with other variables. For example, possibly applying vectorization of the content strings and identifying imporant attributes. Also, we would experiment with dimensionality reduction of the dummy variables before including them in the models, to see if more information could be drawn from them.
 
 ## **Final Predictions**
 
