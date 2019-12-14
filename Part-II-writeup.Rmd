@@ -126,9 +126,6 @@ preprocess <- function(df, rm_dup = TRUE) {
   if ("Shape" %in% names(df)) {
     df$Shape <- recode(df$Shape, ovale = "oval", ronde = "round")
   }
-  if ("year" %in% names(df)) {
-    df$year <- as.character(df$year)
-  }
 
   return (df)
 }
@@ -394,7 +391,7 @@ Interm:dealer* + prevcoll:finished** + portrait:discauth* + discauth:dealer*** +
 
 ```{r bma fitting}
 bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
-                year:discauth + year:artistliving + Interm:discauth +
+                year:discauth + year:artistliving + Interm:discauth + 
                 Interm:dealer + prevcoll:finished + discauth:dealer,
               data = full_train %>% impute_NA(),
               prior = "g-prior",
@@ -460,6 +457,8 @@ plot(bma, which = 4)
 
 ### Model Evaluation
 
+### Model Testing
+
 ```{r subset and split}
 ## SUBSET HOW YOU WANT HERE
 full_train <- paintings_train %>%
@@ -494,42 +493,50 @@ for (i in 1:k) {
 }
 ```
 
-```{r cv analysis}
+```{r cv analysis functions}
 rmse <- function(obs, pred) {
     sqrt(sum((obs - pred)^2)/length(obs))
 }
 
-null_train <- null_test <- train_rmse <- test_rmse <- train_covg <- test_covg <- rep(NA, k)
-for (i in 1:k) {
+cv <- function(full_train, folds, est) {
   
-  test <- full_train[folds[[i]],] %>% impute_NA()
-  train <- full_train[-folds[[i]],] %>% impute_NA()
+  null_train <- null_test <- train_rmse <- test_rmse <- train_covg <- test_covg <- rep(NA, k)
+  for (i in 1:k) {
+    
+    test <- full_train[folds[[i]],] %>% impute_NA()
+    train <- full_train[-folds[[i]],] %>% impute_NA()
+    
+    predict_train <- predict(bma_cv[[i]], newdata = train, estimator = est, se.fit = TRUE)
+    predict_test <- predict(bma_cv[[i]], newdata = test, estimator = est, se.fit = TRUE)
+    # Get prediction intervals into a dataframe like this
+    pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
+    pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
+    
+    # Compare BMA RMSE to a baseline
+    null_train[i] <- rmse(exp(train$logprice), exp(predict(lm(logprice ~ 1, data = train))))
+    null_test[i] <- rmse(exp(test$logprice), exp(predict(lm(logprice ~ 1, data = test))))
+    
+    train_rmse[i] <- rmse(exp(train$logprice), exp(pi_train$pred))
+    train_covg[i] <- mean(exp(train$logprice) > exp(pi_train[,1]) &
+                          exp(train$logprice) < exp(pi_train[,2]) )
+    
+    test_rmse[i] <- rmse(exp(test$logprice), exp(pi_test$pred))
+    test_covg[i] <- mean(exp(test$logprice) > exp(pi_test[,1]) &
+                         exp(test$logprice) < exp(pi_test[,2]))
+  }
   
-  predict_train <- predict(bma_cv[[i]], newdata = train, estimator = "HPM", se.fit = TRUE)
-  predict_test <- predict(bma_cv[[i]], newdata = test, estimator = "HPM", se.fit = TRUE)
-  # Get prediction intervals into a dataframe like this
-  pi_train <- data.frame(confint(predict_train, parm = "pred")[1:nrow(train),])
-  pi_test <- data.frame(confint(predict_test, parm = "pred")[1:nrow(test),])
+  cv_analysis <- cbind(null_train, train_rmse, train_covg,
+                       null_test, test_rmse, test_covg) %>%
+    rbind(average = apply(., MARGIN = 2, mean))
   
-  # Compare BMA RMSE to a baseline
-  null_train[i] <- rmse(exp(train$logprice), exp(predict(lm(logprice ~ 1, data = train))))
-  null_test[i] <- rmse(exp(test$logprice), exp(predict(lm(logprice ~ 1, data = test))))
-  
-  train_rmse[i] <- rmse(exp(train$logprice), exp(pi_train$pred))
-  train_covg[i] <- mean(exp(train$logprice) > exp(pi_train[,1]) &
-                        exp(train$logprice) < exp(pi_train[,2]) )
-  
-  test_rmse[i] <- rmse(exp(test$logprice), exp(pi_test$pred))
-  test_covg[i] <- mean(exp(test$logprice) > exp(pi_test[,1]) &
-                       exp(test$logprice) < exp(pi_test[,2]))
+  return(cv_analysis)
 }
+```
 
-cv_analysis <- cbind(null_train, train_rmse, train_covg,
-                     null_test, test_rmse, test_covg) %>%
-  rbind(average = apply(., MARGIN = 2, mean))
-
-cv_analysis
-#kable(cv_analysis, digits = 3, caption = "k-fold CV for final BMA model")
+```{r cv for different estimators}
+kable(cv(full_train, folds, "BMA"), digits = 3, caption = "k-fold CV for final model (BMA estimator)")
+kable(cv(full_train, folds, "HPM"), digits = 3, caption = "k-fold CV for final model (HPM estimator)")
+kable(cv(full_train, folds, "BPM"), digits = 3, caption = "k-fold CV for final model (BPM estimator)")
 ```
 
 
@@ -538,10 +545,11 @@ cv_analysis
 ```{r top ten}
 paintings_validation %>%
   impute_NA() %>%
-  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "HPM")$fit)) %>%
+  mutate(predict_price = exp(predict(bma, newdata = ., estimator = "BMA")$fit)) %>%
   arrange(desc(predict_price)) %>%
   slice(1:10) %>%
-  select(predict_price, author) %>%
+  select(predict_price, author, subject) %>%
+  mutate_at(c("author", "subject"), function(x) { str_replace_all(x, "[^\\w\\s\\d]", "") }) %>%
   kable(digits = 2, caption = "Top 10 valued paintings in validation set")
 ```
 
