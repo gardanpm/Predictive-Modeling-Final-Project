@@ -137,6 +137,52 @@ paintings_test <- preprocess(paintings_test, rm_dup = F)
 paintings_validation <- preprocess(paintings_validation, rm_dup = F)
 ```
 
+```{r part 2 extra preprocessing, eval = F}
+# part 2 additions
+  quartiles_winningBidder <- paintings_train %>% 
+    group_by(winningbidder) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(row = 1:n(),
+           quartiles_winningBidder = as.factor(ntile(logprice, n=4)),
+           highest_winningBidder = row<=10,
+           lowest_winningBidder = row >= n() - 10) %>% 
+    select(winningbidder, quartiles_winningBidder, lowest_winningBidder, highest_winningBidder)
+  
+  quartiles_authors <- paintings_train %>% 
+    group_by(authorstandard) %>% 
+    summarize(logprice = mean(logprice)) %>% 
+    arrange(-logprice) %>% 
+    ungroup %>% 
+    mutate(row = 1:n(),
+           quartiles_authors = as.factor(ntile(logprice, n=4)),
+           highest_authors = row<=10, 
+           lowest_authors = row >= n() - 10) %>% 
+    select(authorstandard, quartiles_authors, lowest_authors, highest_authors)
+  
+add_quartiles <- function(df, quartiles_authors, quartiles_winningBidder) {
+  df <- df %>% 
+    #mutate(year = as.factor(year)) %>% 
+    left_join(quartiles_winningBidder) %>% 
+    left_join(quartiles_authors) %>% 
+    mutate(lowest_authors = replace_na(lowest_authors, F),
+           highest_authors = replace_na(highest_authors, F),
+           highest_winningBidder = replace_na(highest_winningBidder, F),
+           lowest_winningBidder = replace_na(lowest_winningBidder, F),
+           quartiles_winningBidder = replace_na(quartiles_winningBidder, 1),
+           quartiles_authors = replace_na(quartiles_authors, 4))
+}
+  
+    
+paintings_train <- add_quartiles(paintings_train, quartiles_authors, quartiles_winningBidder)
+paintings_test <- add_quartiles(paintings_test, quartiles_authors, quartiles_winningBidder)
+paintings_validation <- add_quartiles(paintings_validation, quartiles_authors, quartiles_winningBidder)
+
+paintings_test %>%
+  select(author, quartiles_authors, winningbidder, quartiles_winningBidder)
+```
+
 
   We start by exploring variables in the training dataset and understand their meaning. We first implement the required data pre-processing:
   
@@ -332,13 +378,9 @@ full_train <- paintings_train %>%
          lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
          dealer, origin_author, materialCat)
-
-set.seed(100)
-subset <- sample(1:nrow(raw_train), 1000)
-train <- full_train[subset,] %>% impute_NA()
-test <- full_train[-subset,] %>% impute_NA()
 ```
 
+**I ran this to find significant interactions (some listed below)**
 ```{r aic selection}
 full_lm <- lm(logprice ~ (. - Surface + log(Surface))^2, data = train)
 aic_lm <- step(full_lm, trace = 0, direction = "backward", k = 2)
@@ -423,7 +465,7 @@ full_train <- paintings_train %>%
          Interm, engraved, prevcoll, finished,
          lrgfont, lands_sc, portrait, still_life,
          discauth, artistliving,
-         dealer, origin_author, materialCat)
+         dealer, origin_author)
 
 # Splits into k folds
 set.seed(100)
