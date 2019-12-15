@@ -382,13 +382,13 @@ Looking back, we first see that our model performed quite well with a coverage o
 
 * discussion of how prediction intervals obtained --->
 
-From what we learned from the first part, we decide to pick a more restricted set of variables for our initial model. Using k-fold cross validation with k=5, we try different selections including the variables present in our model from Part-I as well as year as factor and our two quartiles variables. We realize however, that despite a better RMSE in the painting_test dataset year as a factor seem to add instability in the model that we can observe through k-fold cross validation. Regarding the quartiles, they seem to reduce our out-of-sample performance consistently. We therefore end-up with a subset of variables of 15 variables that we used in our model in Part-I (`log(Surface)`, `year`, `Interm`, `engraved`, `prevcoll`, `finished`, `lrgfont`, `lands_sc`, `portrait`, `still_life`, `discauth`, `artistliving`, `dealer`, `origin_author` and `materialCat`). In order to investigate potential interactions, we run a backwards stepwise regression with AIC as selection criteria on our selected variables with all two way interactions. From this stepwise model, we pick the interactions that seem the most relevant
+From what we learned from the first part, we decide to pick a more restricted set of variables for our initial model. Using k-fold cross validation with k=5, we try different selections including the variables present in our model from Part-I as well as year as factor and our two quartiles variables. We realize however, that despite a better RMSE in the painting_test dataset year as a factor seem to add instability in the model that we can observe through k-fold cross validation. Regarding the quartiles, they seem to reduce our out-of-sample performance consistently. We therefore end-up with a subset of 15 variables that we used in our model in Part-I (`log(Surface)`, `year`, `Interm`, `engraved`, `prevcoll`, `finished`, `lrgfont`, `lands_sc`, `portrait`, `still_life`, `discauth`, `artistliving`, `dealer`, `origin_author` and `materialCat`). In order to investigate potential interactions, we run a backwards stepwise regression with AIC as selection criteria on our selected variables with all two way interactions. From this stepwise model, we pick the interactions that seem the most relevant
 (`year:discauth`, `year:artistliving`, `Interm:discauth`, `Interm:dealer`, `prevcoll:finished`and `discauth:dealer`).  
 
 
 From this initial model, we choose to use BMA to produce our final model for this task. The advantages of using BMA are that it tends to perform better in terms of out-of-sample prediction compared to single-model techniques. It accounts for out-of-sample uncertainty and includes a version of selection by shrinking unnecessary coefficients towards zero. Markov Chain Monte-Carlo used in this analysis also avoid to enumerate every model and focuses on the one with higher probabilities.
 
-Since we want to restrict the model to only the most important variables, we feel it is better to go with a more complex technique that will perform another kind of variable selection and reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting. We use Highest Probability Model as our estimator as, it performed better (lowest test RMSE) than BMA and BPM in cross-validation as it will be shown in the evaluation of the model. Interval are estimated from this Higest Probability Model as well.
+Since we want to restrict the model to only the most important variables, we feel it is better to go with a more complex technique that will perform another kind of variable selection and reduce the tendency of linear models to overfit. In addition, BMA seems relevant in this case compared to tree-based techniques since the response is a continuous variable that should be monotonically correlated with the coefficients. Lasso and Ridge were also considered but we decided against them because estimating standard errors is more natural in a BMA setting and show higher out-of-sample RMSE. We use Highest Probability Model as our estimator as, it performed better (lowest test RMSE) than BMA and BPM in cross-validation as it will be shown in the evaluation of the model. Intervals are estimated from the posterior thanks to the `predict.bas` function using the HPM model. It calculates intervals the same way as a linear regression model
   
 
 ```{r subsets used, include=FALSE}
@@ -419,6 +419,20 @@ bma <- bas.lm(logprice ~ . - Surface + log(Surface) +
               method = "MCMC")
 ```
 
+```{r}
+# HPM model extracted from summary
+HPM <- full_train%>% select (logprice, Surface, year,
+         Interm, engraved, prevcoll, finished,
+         lrgfont, lands_sc, portrait, still_life,
+         discauth, artistliving,
+         dealer, origin_author)
+HPM <- lm(logprice~ . + prevcoll:finished, data = HPM)
+
+par(mfrow = c(2,2))
+plot(HPM)
+```
+
+Above are the residual plots for the HPM model. They show that the model meet assumptions for linear regression (equal variance, normal residuals, etc.). We can then pursue with this model. 
 
 ```{r bma diagnostics, echo=FALSE}
 par(mfrow = c(2,1))
@@ -552,9 +566,9 @@ kable(cv(full_train, folds, "HPM"), digits = 3, caption = "k-fold CV for final m
 kable(cv(full_train, folds, "BPM"), digits = 3, caption = "k-fold CV for final model (BPM estimator)")
 ```
 
-It can seen that all 3 estimators give similar results.  This should be expected, as one model has a very high posterior probability, making BMA close to selection of the highest-posterior model.  Based on these results, we decided to just use the HPM to make predictions, as it seems to perform the best of the three estimators on out-of-sample observations and as mentioned, it is naturally very close to the BMA estimates.
+All 3 estimators seem to give similar results.  This should be expected, as one model has a very high posterior probability, making BMA close to selection of the highest-posterior model.  Based on these results, we decide to just use the HPM to make predictions, as it seems to perform the best of the three estimators on out-of-sample observations and as mentioned, it is naturally very close to the BMA estimates.
 
-The highest-posterior model performs consistently well across all folds in both RMSE and coverage.  It always does better than the null model and with the exception of the final fold, performs as well or better on the test set than on the training set.  Of the different BMA models we fitted, we found that this final model had relatively low variance in test RMSE and on average, had the lowest test RMSE.  Other models (e.g., one which used the same coefficients but treated `year` as a factor) performed better on the test set leaderboard (1232 RMSE instead of the current 1282 RMSE) but due to high variance, was much worse in cross-validation.  Since we do not know how our performance on the validation set, we decided to choose the more consistent and stable model, despite the slightly lower score on the test set.
+The highest-posterior model performs consistently well across all folds in both RMSE and coverage.  It always does better than the null model and with the exception of the final fold, performs as well or better on the test set than on the training set.  Of the different BMA models we fitted, we found that this final model has relatively low variance in test RMSE and on average, has the lowest test RMSE.  Other models (e.g., one which used the same coefficients but treated `year` as a factor) performs better on the test set leaderboard (1232 RMSE instead of the current 1282 RMSE) but due to high variance, is much worse in cross-validation. Since we do not know how our performance on the validation set, we decide to choose the more consistent and stable model, despite the slightly lower score on the test set.
 
 ### Top 10 Paintings
 
@@ -578,9 +592,9 @@ Our model selects the above works as the top 10 most expensive paintings in the 
 
 It seems like the factors that drove painting prices in 18th century Paris are mostly related to the sale and the dealer, the attributes of the painter and the year the sale took place. Only a few elements that relate to the actual content of the painting remained in our final model. The circumstances of the sale, therefore, have a higher prediction power than the subject that shows up in the painting. This outcome is not very surprising, and one would postulate that this is not a feature unique to pre-industrial France, but a persisting feature of the art world to this day.
 
-Our modelling efforts included multiple trial and error on variable selection and modelling technique. We learned from this experiment that variables that seem to perform very well in the training data can result in overfitting the model when applied to out-of-sample data. For example, we found out that the year variable performs well in the training data when it is viewed as a categorical variable. But when applied to the test data, it seemed to overfit. When we included it as a numeric value (therefore considering a linear relationship with log price) the out-of-sample results got much better results. In addition, once the basic model is decided, using more advanced techniques such as BMA does not necessarily result in better predictions. 
+Our modelling efforts included multiple trial and error on variable selection and modelling technique. We learned from this experiment that variables that seem to perform very well in the training data can result in overfitting the model when applied to out-of-sample data. For example, we found out that the year variable performs well in the test data when it is viewed as a categorical variable. But when performing k-fold cross-validation, it seemed to bring instability to our model with high variance in RMSE. When we included it as a numeric value (therefore considering a linear relationship with log price) the out-of-sample results got much better results. In addition, once the basic model is decided, using more advanced techniques such as BMA does not necessarily result in better predictions. 
 
-If we had more time, we would consider other modelling techniques such as BART, and also experiment more with other variables. For example, possibly applying vectorization of the content strings and identifying imporant attributes. Also, we would experiment with dimensionality reduction of the dummy variables before including them in the models, to see if more information could be drawn from them.
+If we had more time, we would consider other modelling techniques such as BART, and also experiment more with other variables. For example, possibly applying vectorization of the content strings and identifying imporant attributes. Also, we would experiment with dimensionality reduction of the dummy variables before including them in the models, to see if more information could be drawn from them. Finally, we would have executed multiple imputation with `mice`.
 
 ## **Final Predictions**
 
